@@ -18,7 +18,7 @@ const announcements = [
   {
     title: "A first look at CodeLingo",
     description:
-      "This frontend prototype previews the practice experience. Problem pages and account features are still to come.",
+      "Open the recommended problem to preview the question and answer area.",
   },
 ] as const;
 
