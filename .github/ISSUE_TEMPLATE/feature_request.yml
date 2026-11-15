@@ -1,0 +1,69 @@
+name: Feature request
+description: Propose a new page, component, or capability for CodeLingo.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe one focused piece of work. For the initial frontend milestone, use mock data unless the issue explicitly says otherwise.
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What should be built, and why is it needed?
+      placeholder: As a student, I want to...
+    validations:
+      required: true
+  - type: input
+    id: route
+    attributes:
+      label: Page / route / component
+      description: Which page, route, or shared component does this affect?
+      placeholder: /problems or src/components/...
+    validations:
+      required: false
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements
+      description: List the expected behavior and visible elements.
+      placeholder: |
+        - Show...
+        - Allow the user to...
+        - Use mock data for...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Write conditions that can be checked before the issue is closed.
+      placeholder: |
+        - [ ] The page renders at the specified route.
+        - [ ] The layout works on desktop and mobile.
+        - [ ] Existing pages continue to work.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and restrictions
+      description: State what is included and what must not be changed.
+      placeholder: |
+        In scope:
+        - ...
+
+        Out of scope:
+        - No database or API integration.
+        - No authentication or server-side behavior unless explicitly requested.
+    validations:
+      required: false
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies / references
+      description: Link related issues, designs, screenshots, or decisions.
+    validations:
+      required: false
