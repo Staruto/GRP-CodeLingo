@@ -255,7 +255,7 @@ Before requesting review, make sure that:
 
 使用 VS Code：
 
-1. 在 GitHub 上打开 CodeLingo 仓库：https://github.com/Staruto/GRP-CodeLingo。
+1. 在 GitHub 上打开 CodeLingo 仓库：https://github.com/Staruto/GRP-CodeLingo
 2. 点击 **Code**，复制 HTTPS URL，然后打开 VS Code。
 3. 打开命令面板（`Ctrl+Shift+P`），选择 **Git: Clone**，粘贴 URL。
 4. 选择一个本地文件夹，在 VS Code 中打开克隆的仓库。
