@@ -69,9 +69,6 @@ export default function Home() {
         <h2 id="practice-heading" className="section-heading">
           Your practice this month
         </h2>
-        <p className="mt-2 text-sm text-muted">
-          Small steps add up. Here is an example of daily problems solved.
-        </p>
         <PracticeChart />
       </section>
 

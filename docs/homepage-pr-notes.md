@@ -9,7 +9,8 @@ The homepage introduces programming practice, links to the problem list and one
 example problem, shows mock daily solved counts for the current local month, and
 finishes with sample announcements.
 
-The revised header contains Home, Problems, and a labelled example profile.
+The revised header contains Home, Problems, and a labelled example profile linking
+to the future `/profile` page.
 Submissions and account actions are deferred. `/problems` and `/problems/CL001`
 remain future routes and currently return 404, as agreed. No authentication, API,
 database, submission processing, or new dependencies are introduced.

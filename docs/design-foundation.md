@@ -15,7 +15,7 @@ increasing to 40px from 640px.
 
 The header shows CodeLingo, Home, Problems, and an explicitly labelled example
 profile. Navigation moves below the brand/profile on mobile, with no hidden menu.
-The profile is plain content, not an account control. Submissions and Login/Register
+The avatar and profile name link together to `/profile`. Submissions and Login/Register
 are deliberately deferred under the revised homepage requirements.
 
 | Destination | Route | Status |
@@ -23,6 +23,7 @@ are deliberately deferred under the revised homepage requirements.
 | Home | `/` | Implemented |
 | Problem list | `/problems` | Future page; currently returns 404 |
 | Example problem | `/problems/CL001` | Future page; currently returns 404 |
+| User profile | `/profile` | Future page; currently returns 404 |
 | Future problem details | `/problems/[id]` | Preserve the problem ID in the URL |
 
 The Problems navigation item remains active for nested problem routes. Use

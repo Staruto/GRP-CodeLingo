@@ -13,7 +13,11 @@ export function SiteHeader() {
         <Suspense fallback={<SiteNavigationFallback />}>
           <SiteNavigation />
         </Suspense>
-        <div className="order-2 ml-auto flex items-center gap-2 sm:order-3 sm:py-3">
+        <Link
+          href="/profile"
+          aria-label="View Alex's profile"
+          className="order-2 ml-auto flex items-center gap-2 rounded-md hover:text-accent sm:order-3 sm:py-3"
+        >
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full border border-border bg-background text-xs font-bold text-muted">
             AL
           </span>
@@ -21,7 +25,7 @@ export function SiteHeader() {
             <p className="font-bold">Alex</p>
             <p className="mt-1 text-xs text-muted">Example profile</p>
           </div>
-        </div>
+        </Link>
       </Container>
     </header>
   );
