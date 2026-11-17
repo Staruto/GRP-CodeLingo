@@ -22,7 +22,7 @@ are deliberately deferred under the revised homepage requirements.
 | --- | --- | --- |
 | Home | `/` | Implemented |
 | Problem list | `/problems` | Future page; currently returns 404 |
-| Example problem | `/problems/CL001` | Future page; currently returns 404 |
+| Example problem | `/problems/CL001` | Implemented as a practice prototype |
 | User profile | `/profile` | Future page; currently returns 404 |
 | Future problem details | `/problems/[id]` | Preserve the problem ID in the URL |
 
