@@ -1,6 +1,6 @@
 ## Summary
 
-<!-- Briefly describe what this pull request changes and why. -->
+<!-- Briefly describe what this PR do. -->
 
 ## Related issue (needed)
 
@@ -10,7 +10,7 @@ Closes #
 
 ## Changes made
 
-<!-- List the main changes. Mention important files or components where helpful. -->
+<!-- List the main changes. Mention important page / component affected. -->
 -
 
 ## Screenshots / demonstration (optional)
@@ -19,7 +19,6 @@ Closes #
 
 ## Verification
 
-- [ ] I reviewed my own diff and removed unrelated changes.
 - [ ] `npm run lint` passes.
 - [ ] `npm run build` passes.
 - [ ] I tested the affected page or interaction locally.
