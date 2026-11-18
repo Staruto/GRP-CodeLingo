@@ -1,0 +1,24 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4   # checks out the PR *merged into main*
+
+      # 1. Validate HTML
+      - name: HTML validation
+        uses: Cyb3r-Jak3/html5validator-action@v7
+        with:
+          root: .
+          css: true
+
+      # 2. Check for broken internal links
+      - name: Link check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --no-progress '**/*.html' '**/*.md'
+          fail: true

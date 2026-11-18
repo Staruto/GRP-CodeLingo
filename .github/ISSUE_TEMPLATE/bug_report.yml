@@ -28,14 +28,14 @@ body:
       label: Expected behavior
       description: What should happen?
     validations:
-      required: true
+      required: false
   - type: textarea
     id: actual
     attributes:
       label: Actual behavior
       description: What happens instead?
     validations:
-      required: true
+      required: false
   - type: textarea
     id: environment
     attributes:
