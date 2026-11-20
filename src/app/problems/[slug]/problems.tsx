@@ -25,20 +25,24 @@ export const problems: readonly Problem[] = [
     statement: (
       <>
         <p>
-          This JavaScript program converts two strings to numbers with{" "}
-          <code>Number()</code> and then adds them.
+          This C program adds two integers and prints their sum.
         </p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Work out what value is passed to <code>console.log()</code>.</li>
+          <li>Work out the value of <code>sum</code> when <code>printf()</code> runs.</li>
           <li>Enter only the text printed to the console.</li>
         </ul>
       </>
     ),
-    code: `const first = Number("7");
-const second = Number("12");
-const sum = first + second;
+    code: `#include <stdio.h>
 
-console.log(sum);`,
+int main(void) {
+    int first = 7;
+    int second = 12;
+    int sum = first + second;
+
+    printf("%d\\n", sum);
+    return 0;
+}`,
   },
   {
     id: "CL002",
@@ -50,21 +54,27 @@ console.log(sum);`,
     statement: (
       <>
         <p>
-          This JavaScript program should print the last item in <code>colors</code>,
-          but it reads past the end of the array.
+          This C program should print the last item in <code>colors</code>,
+          but its index points past the end of the array. Reading outside the
+          array causes undefined behavior.
         </p>
         <p>
-          Choose the expression that should replace <code>colors.length</code> in
-          the assignment to <code>lastIndex</code>. The fix should also work if
+          Choose the expression that should replace <code>count</code> in the
+          assignment to <code>lastIndex</code>. The fix should also work if
           more colors are added.
         </p>
       </>
     ),
-    code: `const colors = ["red", "green", "blue"];
-const lastIndex = colors.length;
-const lastColor = colors[lastIndex];
+    code: `#include <stdio.h>
 
-console.log(lastColor);`,
-    options: ["colors.length + 1", "colors.length - 1", "colors.length", "0"],
+int main(void) {
+    const char *colors[] = {"red", "green", "blue"};
+    int count = sizeof(colors) / sizeof(colors[0]);
+    int lastIndex = count;
+
+    printf("%s\\n", colors[lastIndex]);
+    return 0;
+}`,
+    options: ["count + 1", "count - 1", "count", "0"],
   },
 ];

@@ -63,7 +63,7 @@ export default async function ProblemPage({ params }: ProblemPageProps) {
               id="example-language"
               className="border-b border-border px-4 py-2 text-sm font-bold text-muted"
             >
-              JavaScript example
+              C example
             </figcaption>
             <div
               role="region"
