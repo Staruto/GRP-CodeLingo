@@ -1,9 +1,14 @@
 import type { NextConfig } from "next";
 
+const localPractice = process.env.NODE_ENV === "development" && process.env.CODELINGO_DATA_SOURCE === "sqlite";
+
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Local submission pages resolve ownership before streaming a response.
+  cacheComponents: !localPractice,
+  partialPrefetching: !localPractice,
+  outputFileTracingExcludes: {
+    "/*": ["./content/problems/**/answer.json", "./data/**"],
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Container } from "@/components/container";
 import { SiteNavigation } from "@/components/site-navigation";
+import { getCurrentUser, usesLocalDatabase } from "@/server/practice";
 
 export function SiteHeader() {
   return (
@@ -13,22 +15,38 @@ export function SiteHeader() {
         <Suspense fallback={<SiteNavigationFallback />}>
           <SiteNavigation />
         </Suspense>
-        <Link
-          href="/profile"
-          aria-label="View Alex's profile"
-          className="order-2 ml-auto flex items-center gap-2 rounded-md hover:text-accent sm:order-3 sm:py-3"
-        >
-          <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full border border-border bg-background text-xs font-bold text-muted">
-            AL
-          </span>
-          <div className="text-sm leading-tight">
-            <p className="font-bold">Alex</p>
-            <p className="mt-1 text-xs text-muted">Example profile</p>
-          </div>
-        </Link>
+        <Suspense>
+          <HeaderProfile />
+        </Suspense>
       </Container>
     </header>
   );
+}
+
+async function HeaderProfile() {
+  const isMock = !usesLocalDatabase();
+  if (!isMock) await connection();
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const className = "order-2 ml-auto flex items-center gap-2 rounded-md sm:order-3 sm:py-3";
+  const profile = (
+    <>
+      <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full border border-border bg-background text-xs font-bold text-muted">
+        {user.username.slice(0, 2).toUpperCase()}
+      </span>
+      <div className="text-sm leading-tight">
+        <p className="font-bold">{user.displayName}</p>
+        {isMock && <p className="mt-1 text-xs text-muted">Example profile</p>}
+      </div>
+    </>
+  );
+
+  return isMock ? (
+    <Link href="/profile" aria-label={`View ${user.displayName}'s profile`} className={`${className} hover:text-accent`}>
+      {profile}
+    </Link>
+  ) : <div className={className}>{profile}</div>;
 }
 
 function SiteNavigationFallback() {

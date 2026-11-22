@@ -5,25 +5,29 @@ import { useRef, useState } from "react";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import {
   filterProblems,
-  mockProblems,
   problemDifficulties,
   problemTypes,
   type ProblemDifficulty,
+  type ProblemSummary,
   type ProblemType,
-} from "@/lib/mock-problems";
+} from "@/lib/practice";
 
-const tags = [...new Set(mockProblems.flatMap((problem) => problem.tags))].sort();
 const controlClassName =
   "min-h-11 w-full min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-export function ProblemCatalogue() {
+export function ProblemCatalogue({ catalogue, isMock }: {
+  catalogue: readonly ProblemSummary[];
+  isMock: boolean;
+}) {
+  const tags = [...new Set(catalogue.flatMap((problem) => problem.tags))].sort();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ProblemType | "">("");
   const [difficulty, setDifficulty] = useState<ProblemDifficulty | "">("");
   const [tag, setTag] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  const problems = filterProblems(mockProblems, { query, type, difficulty, tag });
+  const problems = filterProblems(catalogue, { query, type, difficulty, tag });
   const hasFilters = Boolean(query || type || difficulty || tag);
+  const statusLabel = isMock ? "Status (mock)" : "Status";
 
   function clearFilters() {
     setQuery("");
@@ -116,7 +120,7 @@ export function ProblemCatalogue() {
         </div>
         <noscript>
           <p className="mt-3 text-sm text-muted">
-            Enable JavaScript to search and filter. The full example catalogue is shown below.
+            Enable JavaScript to search and filter. The full catalogue is shown below.
           </p>
         </noscript>
       </form>
@@ -124,7 +128,7 @@ export function ProblemCatalogue() {
       <div className="flex flex-wrap items-baseline justify-between gap-2 py-5">
         <h2 className="section-heading">Practice questions</h2>
         <p role="status" aria-atomic="true" className="text-sm text-muted">
-          {problems.length} of {mockProblems.length} problems
+          {problems.length} of {catalogue.length} problems
         </p>
       </div>
 
@@ -139,17 +143,17 @@ export function ProblemCatalogue() {
               <span>Question type</span>
               <span>Difficulty</span>
               <span>Tags</span>
-              <span>Status (mock)</span>
+              <span>{statusLabel}</span>
             </div>
           </div>
           <ul aria-label="Practice questions" className="divide-y divide-border border-y border-border lg:border-t-0">
             {problems.map((problem) => (
               <li
-                key={problem.id}
+                key={problem.slug}
                 className="grid gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-start lg:gap-6 lg:px-3"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-xs text-muted">{problem.id}</p>
+                  <p className="font-mono text-xs text-muted">{problem.slug}</p>
                   <h3 className="mt-1 font-bold">
                     <Link className="text-link inline-block py-1" href={`/problems/${problem.slug}`}>
                       {problem.title}
@@ -176,9 +180,9 @@ export function ProblemCatalogue() {
                     </dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="mb-1 text-xs text-muted lg:sr-only">Status (mock)</dt>
+                    <dt className="mb-1 text-xs text-muted lg:sr-only">{statusLabel}</dt>
                     <dd className={problem.status === "Solved" ? "font-bold text-accent" : "text-muted"}>
-                      {problem.status}
+                      {problem.status ?? "—"}
                     </dd>
                   </div>
                 </dl>

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { ProblemCatalogue } from "@/components/problems/problem-catalogue";
+import { getProblems, usesLocalDatabase } from "@/server/practice";
 
 export const metadata: Metadata = {
   title: "Problems",
@@ -16,11 +19,24 @@ export default function ProblemsPage() {
           Practise reading and understanding code. Predict what a program prints
           or find the error, then explore a new topic at your own pace.
         </p>
-        <p className="mt-3 text-sm text-muted">
-          Example catalogue · All problems and completion statuses are mock data.
-        </p>
       </section>
-      <ProblemCatalogue />
+      <Suspense fallback={<p role="status">Loading problems…</p>}>
+        <Catalogue />
+      </Suspense>
     </div>
+  );
+}
+
+async function Catalogue() {
+  const isMock = !usesLocalDatabase();
+  if (!isMock) await connection();
+  const catalogue = await getProblems();
+  return (
+    <>
+      {isMock && (
+        <p className="text-sm text-muted">Example catalogue · Practice statuses are mock data.</p>
+      )}
+      <ProblemCatalogue catalogue={catalogue} isMock={isMock} />
+    </>
   );
 }

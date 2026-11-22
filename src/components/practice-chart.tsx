@@ -1,44 +1,11 @@
-"use client";
+import type { PracticeStats } from "@/lib/practice";
 
-import { useSyncExternalStore } from "react";
-import { createMockPracticeMonth } from "@/lib/mock-practice";
-
-// A stable string snapshot avoids hydration mismatches and refreshes after midnight.
-function getLocalDay() {
-  const now = new Date();
-  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-}
-
-function subscribeToLocalDay(onChange: () => void) {
-  const timer = window.setInterval(onChange, 60_000);
-  window.addEventListener("focus", onChange);
-  return () => {
-    window.clearInterval(timer);
-    window.removeEventListener("focus", onChange);
-  };
-}
-
-const getServerDay = () => "";
-
-export function PracticeChart() {
-  const localDay = useSyncExternalStore(subscribeToLocalDay, getLocalDay, getServerDay);
-
-  if (!localDay) {
-    return (
-      <div className="mt-5 flex min-h-80 items-center justify-center border-y border-border text-sm text-muted">
-        <p role="status">
-          The example chart loads using your local calendar month.
-          <noscript> Enable JavaScript to view the chart.</noscript>
-        </p>
-      </div>
-    );
-  }
-
-  const [year, month, day] = localDay.split("-").map(Number);
-  const today = new Date(year, month - 1, day);
-  const days = createMockPracticeMonth(today);
-  const monthLabel = today.toLocaleDateString("en", { month: "long", year: "numeric" });
+export function PracticeChart({ stats, isMock }: { stats: PracticeStats; isMock: boolean }) {
+  const { days, today, monthLabel } = stats;
   const total = days.reduce((sum, entry) => sum + (entry.solved ?? 0), 0);
+  const peak = Math.max(...days.map((entry) => entry.solved ?? 0));
+  const tickSize = Math.max(isMock ? 2 : 1, Math.ceil(peak / 3));
+  const maximum = tickSize * 3;
   const chartWidth = 960;
   const plotLeft = 40;
   const plotRight = 16;
@@ -51,11 +18,11 @@ export function PracticeChart() {
     <figure className="mt-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-bold">{monthLabel}</h3>
-        <p className="text-sm text-muted">{total} solved · mock total</p>
+        <p className="text-sm text-muted">{total} solved{isMock && " · mock total"}</p>
       </div>
       <div
         role="region"
-        aria-label="Daily mock practice chart; scroll horizontally on small screens"
+        aria-label="Daily practice chart. Scroll horizontally on small screens."
         tabIndex={0}
         className="overflow-x-auto rounded-md border border-border"
       >
@@ -65,12 +32,12 @@ export function PracticeChart() {
           aria-labelledby="practice-chart-title practice-chart-description"
           className="block w-full min-w-[960px] font-sans"
         >
-          <title id="practice-chart-title">Mock problems solved per day in {monthLabel}</title>
+          <title id="practice-chart-title">{`${isMock ? "Mock problems" : "Problems"} solved per day in ${monthLabel}`}</title>
           <desc id="practice-chart-description">
-            Example counts from zero to six. Future days have no data. The expandable daily data table below contains every value.
+            Future days have no data. The expandable daily data table below contains every value.
           </desc>
-          {[0, 2, 4, 6].map((count) => {
-            const y = baseline - (count / 6) * plotHeight;
+          {[0, tickSize, tickSize * 2, maximum].map((count) => {
+            const y = baseline - (count / maximum) * plotHeight;
             return (
               <g key={count}>
                 <line x1={plotLeft} x2={chartWidth - plotRight} y1={y} y2={y} stroke="var(--border)" />
@@ -80,14 +47,13 @@ export function PracticeChart() {
           })}
           {days.map((entry, index) => {
             const x = plotLeft + index * columnWidth + columnWidth / 2;
-            const height = ((entry.solved ?? 0) / 6) * plotHeight;
-            const isToday = entry.day === day;
+            const height = ((entry.solved ?? 0) / maximum) * plotHeight;
+            const isToday = entry.date === today;
+            const description = entry.solved === null ? "No data (future day)" : `${entry.solved} problems solved`;
 
             return (
               <g key={entry.date}>
-                <title>
-                  {entry.date}: {entry.solved === null ? "No data (future day)" : `${entry.solved} problems solved (mock)`}
-                </title>
+                <title>{`${entry.date}: ${description}`}</title>
                 {entry.solved === null ? (
                   <line x1={x - columnWidth * 0.25} x2={x + columnWidth * 0.25} y1={baseline - 2} y2={baseline - 2} stroke="var(--muted)" strokeDasharray="2 2" />
                 ) : entry.solved === 0 ? (
@@ -105,20 +71,19 @@ export function PracticeChart() {
         </svg>
       </div>
       <figcaption className="mt-3 text-sm leading-6 text-muted">
-        Mock data only, not your actual activity. Each bar represents problems
-        solved in a day; a blue dot on the baseline means zero, a dashed mark
-        means a future day, and a dot below a day label marks today. Dates use
-        your local calendar.
+        {isMock ? "Example daily solve counts. " : "Each problem counts on the day you first solved it. "}
+        A blue dot on the baseline means zero, a dashed mark means a future day,
+        and a dot below a day label marks today.
       </figcaption>
       <details className="mt-3 text-sm">
         <summary className="w-fit cursor-pointer py-2 font-bold text-accent hover:underline">View daily data</summary>
-        <div className="mt-2 max-h-72 overflow-auto rounded-md border border-border" tabIndex={0} role="region" aria-label="Daily mock practice data">
+        <div className="mt-2 max-h-72 overflow-auto rounded-md border border-border" tabIndex={0} role="region" aria-label="Daily practice data">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Daily problems solved in {monthLabel} — mock data</caption>
+            <caption className="sr-only">Daily problems solved in {monthLabel}{isMock && " (mock data)"}</caption>
             <thead className="sticky top-0 bg-background">
               <tr>
                 <th scope="col" className="px-4 py-2 font-bold">Date</th>
-                <th scope="col" className="px-4 py-2 font-bold">Problems solved (mock)</th>
+                <th scope="col" className="px-4 py-2 font-bold">Problems solved</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

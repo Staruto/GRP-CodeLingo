@@ -1,8 +1,8 @@
 # CodeLingo
 
-CodeLingo helps students practise programming concepts. The homepage currently
-uses a labelled example profile and local mock data; it has no backend or
-authentication. The Problems links reserve routes for future page issues.
+CodeLingo helps students practise programming concepts. The default app uses a
+labelled example profile and mock data. Local developers can opt in to SQLite
+to grade and review real attempts as the seeded user Alex.
 
 Before adding a page, read the [shared design foundation](docs/design-foundation.md)
 for layout, typography, colours, component examples, and team coordination guidance.
@@ -25,6 +25,31 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Local SQLite practice
+
+Use Node.js 22.13 or later. Add `CODELINGO_DATA_SOURCE=sqlite` to `.env.local`,
+then run:
+
+```bash
+npm run db:migrate
+npm run db:seed
+npm run dev -- --hostname 127.0.0.1
+```
+
+The database defaults to `data/codelingo.sqlite`. Set `CODELINGO_DB_PATH` in
+`.env.local` to use a different file. Migrations run once per database. The seed
+adds Alex and any new problem slugs, and preserves existing problems and
+submissions. The production build uses mocks and requires no SQLite file.
+
+Each problem directory under `content/problems` has a public `problem.md` and
+`example.c`, plus a grading key in `answer.json`. Anyone with repository access
+can read the keys. The seed checks that each problem has a matching key and that
+correct option keys reference a listed choice. Review content and its answer
+together before publishing a slug.
+
+Run `npm run test:db` to check the schema, seeding, grading, and stats in an
+isolated in-memory database.
 
 You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
 

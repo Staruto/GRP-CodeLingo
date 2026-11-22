@@ -1,41 +1,48 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { ButtonLink } from "@/components/button-link";
 import { SubmissionResult } from "@/components/submissions/submission-result";
-import {
-  getMockSubmissionDetail,
-  mockSubmissionDetails,
-} from "@/lib/mock-submission-details";
+import { getSampleSubmissionIds, getSampleSubmissions, getSubmission, usesLocalDatabase } from "@/server/practice";
 
-type SubmissionPageProps = {
-  params: Promise<{ submissionId: string }>;
-};
+type SubmissionPageProps = PageProps<"/submissions/[submissionId]">;
 
 export function generateStaticParams() {
-  return mockSubmissionDetails.map(({ id }) => ({ submissionId: id }));
+  return getSampleSubmissionIds().map((submissionId) => ({ submissionId }));
 }
 
-export async function generateMetadata({
-  params,
-}: SubmissionPageProps): Promise<Metadata> {
-  const { submissionId } = await params;
-  const submission = getMockSubmissionDetail(submissionId);
+async function readSubmission(params: SubmissionPageProps["params"]) {
+  if (usesLocalDatabase()) await connection();
+  return getSubmission((await params).submissionId);
+}
 
+export async function generateMetadata({ params }: SubmissionPageProps): Promise<Metadata> {
+  const submission = await readSubmission(params);
+  if (!submission) notFound();
   return {
-    title: submission ? `Submission ${submission.id}` : "Submission not found",
+    title: `Submission ${submission.id}`,
     robots: { index: false },
   };
 }
 
-export default async function SubmissionDetailPage({ params }: SubmissionPageProps) {
-  const { submissionId } = await params;
-  const submission = getMockSubmissionDetail(submissionId);
+export default function SubmissionDetailPage({ params }: SubmissionPageProps) {
+  if (usesLocalDatabase()) return <SubmissionDetail params={params} />;
 
-  if (!submission) {
-    notFound();
-  }
+  return (
+    <Suspense fallback={<p role="status">Loading submission…</p>}>
+      <SubmissionDetail params={params} />
+    </Suspense>
+  );
+}
 
+async function SubmissionDetail({ params }: Pick<SubmissionPageProps, "params">) {
+  const submission = await readSubmission(params);
+  if (!submission) notFound();
+
+  const isMock = !usesLocalDatabase();
+  const samples = await getSampleSubmissions();
   const submittedAt = new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
@@ -43,7 +50,8 @@ export default async function SubmissionDetailPage({ params }: SubmissionPagePro
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-    timeZone: "Asia/Shanghai",
+    timeZone: submission.timeZone,
+    timeZoneName: "shortOffset",
   }).format(new Date(submission.submittedAt));
 
   return (
@@ -53,54 +61,50 @@ export default async function SubmissionDetailPage({ params }: SubmissionPagePro
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <li><Link href="/" className="text-link">Home</Link></li>
             <li aria-hidden="true">/</li>
-            <li><Link href="/submissions" className="text-link">Submissions</Link></li>
+            {isMock ? <li><Link href="/submissions" className="text-link">Submissions</Link></li>
+              : <li><Link href="/problems" className="text-link">Problems</Link></li>}
             <li aria-hidden="true">/</li>
             <li aria-current="page" className="break-all font-mono">{submission.id}</li>
           </ol>
         </nav>
 
-        <p className="mb-3 text-sm text-muted">Prototype · Sample submission</p>
-        <h1 id="submission-heading" className="page-heading">
+        {isMock && <p className="mb-3 text-sm text-muted">Prototype · Sample submission</p>}
+        <h1 id="submission-heading" className="page-heading break-words">
           Submission <span className="font-mono">{submission.id}</span>
         </h1>
-        <p className="mt-3 max-w-2xl text-muted">
-          An example of a fixed-answer practice submission. The answer, result,
-          and activity shown here are sample data, not a real student record.
-        </p>
       </section>
 
       <section aria-labelledby="overview-heading">
         <h2 id="overview-heading" className="section-heading">Submission details</h2>
         <dl className="mt-4 grid gap-x-8 gap-y-6 border-y border-border py-5 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <dt className="text-sm text-muted">Submission ID</dt>
+            <dt className="text-sm font-medium">Submission ID</dt>
             <dd className="mt-1 break-all font-mono">{submission.id}</dd>
           </div>
           <div>
-            <dt className="text-sm text-muted">Submitted at (UTC+8)</dt>
+            <dt className="text-sm font-medium">Submitted at</dt>
             <dd className="mt-1"><time dateTime={submission.submittedAt}>{submittedAt}</time></dd>
           </div>
           <div>
-            <dt className="text-sm text-muted">Submitted by</dt>
+            <dt className="text-sm font-medium">Submitted by</dt>
             <dd className="mt-1 break-words">
-              <Link href={`/users/${submission.username}`} className="text-link">
-                {submission.username}
-              </Link>
+              {isMock ? <Link href={`/users/${submission.username}`} className="text-link">{submission.username}</Link>
+                : submission.username}
             </dd>
           </div>
           <div className="min-w-0 sm:col-span-2">
-            <dt className="text-sm text-muted">Problem</dt>
+            <dt className="text-sm font-medium">Problem</dt>
             <dd className="mt-1">
-              <Link href={`/problems/${submission.problem.id}`} className="text-link">
-                <span className="font-mono">{submission.problem.id}</span>
+              <Link href={`/problems/${submission.problem.slug}`} className="text-link font-bold">
+                <span className="font-mono">{submission.problem.slug}</span>
                 <span aria-hidden="true"> · </span>
                 {submission.problem.title}
               </Link>
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-muted">Question type</dt>
-            <dd className="mt-1">{submission.problem.questionType}</dd>
+            <dt className="text-sm font-medium">Question type</dt>
+            <dd className="mt-1">{submission.problem.type}</dd>
           </div>
         </dl>
       </section>
@@ -114,34 +118,33 @@ export default async function SubmissionDetailPage({ params }: SubmissionPagePro
 
       <section aria-labelledby="result-heading">
         <h2 id="result-heading" className="section-heading">Result</h2>
-        <div className="mt-4"><SubmissionResult result={submission.result} /></div>
-        <p className="mt-3 max-w-2xl text-sm text-muted">
-          This result is part of the example. No answer has been submitted,
-          graded, or saved by this prototype.
-        </p>
+        <div className="mt-4"><SubmissionResult verdict={submission.verdict} /></div>
+        {isMock && <p className="mt-3 text-sm text-muted">This answer and verdict are sample data.</p>}
       </section>
 
       <div className="flex flex-wrap gap-3">
-        <ButtonLink href={`/problems/${submission.problem.id}`}>View problem</ButtonLink>
-        <ButtonLink href="/submissions" variant="secondary">Back to submissions</ButtonLink>
+        <ButtonLink href={`/problems/${submission.problem.slug}`}>View problem</ButtonLink>
+        {isMock && <ButtonLink href="/submissions" variant="secondary">Back to submissions</ButtonLink>}
       </div>
 
-      <nav aria-label="Sample submissions" className="border-t border-border pt-5 text-sm">
-        <p className="mb-2 font-bold">Explore sample submissions</p>
-        <ul className="flex flex-wrap gap-x-6 gap-y-2">
-          {mockSubmissionDetails.map((sample) => (
-            <li key={sample.id}>
-              <Link
-                href={`/submissions/${sample.id}`}
-                aria-current={sample.id === submission.id ? "page" : undefined}
-                className="text-link"
-              >
-                <span className="font-mono">{sample.id}</span> — {sample.result}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      {samples.length > 0 && (
+        <nav aria-label="Sample submissions" className="border-t border-border pt-5 text-sm">
+          <p className="mb-2 font-bold">Explore sample submissions</p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-2">
+            {samples.map((sample) => (
+              <li key={sample.id}>
+                <Link
+                  href={`/submissions/${sample.id}`}
+                  aria-current={sample.id === submission.id ? "page" : undefined}
+                  className="text-link"
+                >
+                  <span className="font-mono">{sample.id}</span> — {sample.verdict === "AC" ? "Correct" : "Incorrect"}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }
