@@ -1,8 +1,8 @@
 # CodeLingo design foundation
 
-The homepage is the reference implementation for new frontend pages. This is a
-light-theme, static prototype: the example profile, practice counts, problem, and
-announcements do not represent real student data.
+The homepage is the reference implementation for new frontend pages. The default
+app shows an example profile and practice data. Local SQLite mode displays saved
+practice activity for the seeded user. See the [practice backend guide](practice-backend.md).
 
 ## Shared page shell
 
@@ -13,22 +13,20 @@ grey background. Horizontal padding is 16px below 640px, 24px from 640px, and 32
 from 1024px. The header uses the same alignment. Page padding is 32px vertically,
 increasing to 40px from 640px.
 
-The header shows CodeLingo, Home, Problems, and an explicitly labelled example
-profile. Navigation moves below the brand/profile on mobile, with no hidden menu.
-The avatar and profile name link together to `/profile`. Submissions and Login/Register
-are deliberately deferred under the revised homepage requirements.
+The header shows CodeLingo, Home, Problems, and the current profile. Navigation
+moves below the brand and profile on mobile. The mock profile links to the
+reserved `/profile` route. In SQLite mode the header shows the seeded user's name.
 
 | Destination | Route | Status |
 | --- | --- | --- |
 | Home | `/` | Implemented |
-| Problem list | `/problems` | Future page; currently returns 404 |
-| Example problem | `/problems/CL001` | Implemented as a practice prototype |
-| User profile | `/profile` | Future page; currently returns 404 |
-| Future problem details | `/problems/[id]` | Preserve the problem ID in the URL |
+| Problem catalogue | `/problems` | Search and filter by question type, difficulty, and tag |
+| Problem detail | `/problems/[slug]` | CL001 and CL002 have statements and answer forms |
+| Submission detail | `/submissions/[submissionId]` | Sample IDs in mock mode and saved UUIDs in SQLite mode |
+| User profile | `/profile` | Reserved for future work |
 
 The Problems navigation item remains active for nested problem routes. Use
-`next/link` for internal navigation. Do not add placeholder pages or authentication
-to make these links resolve as part of this issue.
+`next/link` for internal navigation.
 
 ## Typography, colour, and spacing
 
@@ -106,22 +104,15 @@ export default function ExamplePage() {
 - Plain content links use `text-link`. Interactive elements receive a shared blue
   keyboard-focus outline. Do not remove that outline.
 
-Keep page content as Server Components. The active navigation and browser-local
-practice chart are small Client Component boundaries. Do not mark an entire page
-as a Client Component merely to use them.
+Keep page content as Server Components. The active navigation, catalogue filters,
+and answer form use Client Components for their interactive behavior.
 
-## Mock practice chart
+## Practice chart
 
-The SVG chart shows one column per day of the viewer's current local calendar
-month. Counts are deterministic examples between zero and six, not random values
-that change on every render. Future dates use `null` (no data), not a solved count
-of zero. A blue baseline dot represents an actual mock zero; a dashed baseline
-mark indicates a future date. Today has a dot below its day label.
-
-The server renders a stable loading explanation. After hydration, the chart reads
-the browser's local date; it checks for a new day each minute and on window focus.
-There is no API, storage, or user-specific input. Without JavaScript, an explanation
-remains visible instead of a misleading server-time chart.
+The server renders one column per day of the current practice month. Mock mode
+displays example counts, and SQLite mode displays daily first solves in the
+user's timezone. A blue baseline dot represents zero and a dashed mark represents
+a future date. Today has a dot below its day label.
 
 The chart has a 960px minimum width to keep all daily labels legible. Only its
 region scrolls horizontally on smaller screens. The expandable **View daily data**

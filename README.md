@@ -6,30 +6,33 @@ to grade and review real attempts as the seeded user Alex.
 
 Before adding a page, read the [shared design foundation](docs/design-foundation.md)
 for layout, typography, colours, component examples, and team coordination guidance.
-See [homepage PR notes](docs/homepage-pr-notes.md) for the initial implementation.
+For a walkthrough of grading, the schema, and how to add problems, see the
+[practice backend guide](docs/practice-backend.md).
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
+## Getting started
 
-First, run the development server:
+Use Node.js 22.13 or later. From the repository root, install the locked
+dependencies and start the default mock app.
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ### Local SQLite practice
 
-Use Node.js 22.13 or later. Add `CODELINGO_DATA_SOURCE=sqlite` to `.env.local`,
-then run:
+Stop the mock dev server if it is running. Add the following to `.env.local` in
+the repository root.
+
+```dotenv
+CODELINGO_DATA_SOURCE=sqlite
+```
+
+Then initialize the local database and start the app.
 
 ```bash
 npm run db:migrate
@@ -37,25 +40,14 @@ npm run db:seed
 npm run dev -- --hostname 127.0.0.1
 ```
 
-The database defaults to `data/codelingo.sqlite`. Set `CODELINGO_DB_PATH` in
-`.env.local` to use a different file. Migrations run once per database. The seed
-adds Alex and any new problem slugs, and preserves existing problems and
-submissions. The production build uses mocks and requires no SQLite file.
-
-Each problem directory under `content/problems` has a public `problem.md` and
-`example.c`, plus a grading key in `answer.json`. Anyone with repository access
-can read the keys. The seed checks that each problem has a matching key and that
-correct option keys reference a listed choice. Review content and its answer
-together before publishing a slug.
-
-Run `npm run test:db` to check the schema, seeding, grading, and stats in an
-isolated in-memory database.
-
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
+Open [http://127.0.0.1:3000/problems](http://127.0.0.1:3000/problems).
+The catalogue starts with CL001 and CL002. To return to the mock app, remove
+`CODELINGO_DATA_SOURCE` from `.env.local` and your shell environment, then restart
+the dev server. Production builds and `npm start` use mocks.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts)
 to load Lato (400 and 700). An initial production build requires network access to
 Google Fonts; the resulting font files are served locally by Next.js.
 
-Before opening a PR, run `npm run lint` and `npm run build`, and check the page at
-desktop, tablet, and mobile widths.
+Before opening a PR, run `npm run lint`, `npm run test:db`, `npm run build`,
+and `npx tsc --noEmit`. For UI changes, also check desktop, tablet, and mobile widths.
