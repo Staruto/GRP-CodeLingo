@@ -14,6 +14,10 @@ SQLite runs only in development with `CODELINGO_DATA_SOURCE=sqlite`. The app
 resolves a single seeded identity, Alex. It has no sign-in, profile page, or
 submission-history page yet. The local setup uses the loopback address in the README.
 
+For an existing local database, rerun `npm run db:migrate` to add the user role
+while preserving users and submissions. Alex and existing users default to
+`user`. The user model also supports `admin` for explicit test fixtures.
+
 ## Reproduce a practice session
 
 1. Start with a fresh database. For a separate run, set

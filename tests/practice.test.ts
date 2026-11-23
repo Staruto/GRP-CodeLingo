@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { openDatabase } from "../src/db/connection";
+import { devProfile } from "../src/db/dev-profile";
 import { migrate } from "../src/db/migrate";
 import {
   findProblem, findSubmission, findUser, listProblems, readPracticeStats, recordSubmission,
@@ -16,6 +18,60 @@ function practiceDatabase(t: TestContext) {
   assert.ok(alex);
   return { db, alex };
 }
+
+test("the role migration upgrades an existing user without changing their submissions", (t) => {
+  const db = openDatabase(":memory:");
+  t.after(() => db.close());
+  db.exec(readFileSync("src/db/migrations/001_practice.sql", "utf8"));
+  db.exec(`
+    CREATE TABLE schema_migrations (name TEXT PRIMARY KEY) STRICT;
+    INSERT INTO schema_migrations (name) VALUES ('001_practice.sql');
+    INSERT INTO users (id, username, display_name, time_zone, created_at)
+    VALUES (7, 'legacy', 'Legacy User', 'UTC', 100);
+    INSERT INTO problems (id, slug, title, question_type, difficulty, statement_markdown, example_code, code_language)
+    VALUES (9, 'legacy-problem', 'Legacy Problem', 'Predict Output', 'Easy', 'Predict the output.', '', 'c');
+    INSERT INTO submissions (id, user_id, problem_id, verdict, submitted_at, submitted_text)
+    VALUES ('legacy-attempt', 7, 9, 'AC', 200, '19');
+  `);
+  const originalSubmission = db.prepare("SELECT * FROM submissions WHERE id = 'legacy-attempt'").get();
+  assert.ok(originalSubmission);
+
+  migrate(db);
+  migrate(db);
+
+  assert.deepEqual(findUser(db, "legacy"), {
+    id: 7, username: "legacy", displayName: "Legacy User", timeZone: "UTC", role: "user",
+  });
+  assert.equal(db.prepare("SELECT created_at FROM users WHERE id = 7").get()?.created_at, 100);
+  assert.deepEqual(db.prepare("SELECT * FROM submissions WHERE id = 'legacy-attempt'").get(), originalSubmission);
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+});
+
+test("user lookups return both roles and reseeding preserves them", (t) => {
+  const { db, alex } = practiceDatabase(t);
+  const insertWithRole = db.prepare(`
+    INSERT INTO users (username, display_name, time_zone, created_at, role) VALUES (?, ?, 'UTC', 0, ?)
+  `);
+  insertWithRole.run("test-admin", "Test Admin", "admin");
+  db.prepare(`
+    INSERT INTO users (username, display_name, time_zone, created_at) VALUES ('test-user', 'Test User', 'UTC', 0)
+  `).run();
+
+  assert.equal(devProfile.role, "user");
+  assert.equal(alex.role, "user");
+  const admin = findUser(db, "test-admin");
+  const user = findUser(db, "test-user");
+  assert.equal(admin?.role, "admin");
+  assert.equal(user?.role, "user");
+  assert.equal(findUser(db, "missing"), null);
+  assert.throws(() => insertWithRole.run("invalid", "Invalid Role", "moderator"), /CHECK constraint failed/);
+  assert.throws(() => insertWithRole.run("null-role", "Missing Role", null), /NOT NULL constraint failed/);
+
+  assert.equal(seed(db), 0);
+  assert.deepEqual(findUser(db, "alex"), alex);
+  assert.deepEqual(findUser(db, "test-admin"), admin);
+  assert.deepEqual(findUser(db, "test-user"), user);
+});
 
 test("migrations and reseeding preserve problem IDs, users, and submission history", (t) => {
   const { db, alex } = practiceDatabase(t);
@@ -65,7 +121,8 @@ test("both question types are graded, inputs are preserved, and submission looku
   assert.equal(recordSubmission(db, alex.id, "missing", { type: "Predict Output", text: "19" }), null);
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM submissions").get()?.count, 4);
 
-  db.prepare("INSERT INTO users VALUES (?, ?, ?, ?, ?)").run(2, "sam", "Sam", "UTC", 0);
+  db.prepare("INSERT INTO users (id, username, display_name, time_zone, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(2, "sam", "Sam", "UTC", 0);
   assert.equal(findSubmission(db, correct, 2), null);
   assert.equal(findSubmission(db, "missing", alex.id), null);
   assert.deepEqual(statuses(2), initialStatuses);
