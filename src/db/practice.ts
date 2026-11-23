@@ -7,12 +7,15 @@ import { derivePracticeStats } from "../server/practice-stats";
 import { inTransaction } from "./connection";
 
 export function findUser(db: DatabaseSync, username: string): CurrentUser | null {
-  const row = db.prepare("SELECT id, username, display_name, time_zone FROM users WHERE username = ?").get(username);
+  const row = db.prepare(`
+    SELECT id, username, display_name, time_zone, role FROM users WHERE username = ?
+  `).get(username);
   return row ? {
     id: Number(row.id),
     username: String(row.username),
     displayName: String(row.display_name),
     timeZone: String(row.time_zone),
+    role: row.role as CurrentUser["role"],
   } : null;
 }
 

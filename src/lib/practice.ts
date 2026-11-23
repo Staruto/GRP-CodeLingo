@@ -5,12 +5,14 @@ export type ProblemType = (typeof problemTypes)[number];
 export type ProblemDifficulty = (typeof problemDifficulties)[number];
 export type ProblemStatus = "Not attempted" | "Attempted" | "Solved";
 export type Verdict = "AC" | "WA";
+export type UserRole = "user" | "admin";
 
 export type CurrentUser = {
   id: number;
   username: string;
   displayName: string;
   timeZone: string;
+  role: UserRole;
 };
 
 export type ProblemSummary = {
