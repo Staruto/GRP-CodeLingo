@@ -2,8 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { databasePath, openDatabase } from "@/db/connection";
 import { devProfile } from "@/db/dev-profile";
-import { findProblem, findSubmission, findUser, listProblems, readPracticeStats } from "@/db/practice";
-import type { CurrentUser } from "@/lib/practice";
+import { findProblem, findPublicUserProfile, findSubmission, findUser, listProblems, readPracticeStats } from "@/db/practice";
+import type { CurrentUser, PublicUserProfile } from "@/lib/practice";
 import { derivePracticeStats } from "./practice-stats";
 import {
   getMockPracticeStats, getMockProblem, getMockProblems, getMockSubmission, mockProblemSlugs, mockSubmissionIds,
@@ -31,6 +31,29 @@ export async function getProblems() {
   if (!usesLocalDatabase()) return getMockProblems();
   const user = await getCurrentUser();
   return withLocalDatabase((db) => listProblems(db, user?.id ?? null));
+}
+
+export const getUserProfile = cache(async (username: string): Promise<PublicUserProfile | null> => {
+  if (usesLocalDatabase()) return withLocalDatabase((db) => findPublicUserProfile(db, username));
+  if (username !== devProfile.username) return null;
+
+  const submissions = mockSubmissionIds.map(getMockSubmission)
+    .filter((submission) => submission !== null)
+    .filter((submission) => submission.username === username);
+  const solvedProblems = new Set(
+    submissions.filter((submission) => submission.verdict === "AC").map((submission) => submission.problem.slug),
+  ).size;
+  return {
+    username,
+    displayName: devProfile.displayName,
+    joinedAt: "2026-11-01T00:00:00.000Z",
+    solvedProblems,
+    totalAttempts: submissions.length,
+  };
+});
+
+export function getSampleProfileUsernames() {
+  return usesLocalDatabase() ? [] : [devProfile.username];
 }
 
 export const getProblem = cache(async (slug: string) => {

@@ -6,7 +6,7 @@ import { readPublicProblem } from "../src/db/content";
 import { devProfile } from "../src/db/dev-profile";
 import { migrate } from "../src/db/migrate";
 import {
-  findProblem, findSubmission, findUser, listProblems, readPracticeStats, recordSubmission,
+  findProblem, findPublicUserProfile, findSubmission, findUser, listProblems, readPracticeStats, recordSubmission,
 } from "../src/db/practice";
 import { seed } from "../src/db/seed";
 import { filterProblems } from "../src/lib/practice";
@@ -73,6 +73,29 @@ test("user lookups return both roles and reseeding preserves them", (t) => {
   assert.deepEqual(findUser(db, "alex"), alex);
   assert.deepEqual(findUser(db, "test-admin"), admin);
   assert.deepEqual(findUser(db, "test-user"), user);
+});
+
+test("public profiles expose only public fields and count each solved problem once per user", (t) => {
+  const { db, alex } = practiceDatabase(t);
+  const joinedAt = "2026-11-01T00:00:00.000Z";
+  db.prepare(`
+    INSERT INTO users (id, username, display_name, time_zone, created_at, role, email, password_hash)
+    VALUES (2, 'sam', 'Sam', 'UTC', ?, 'admin', 'private@example.test', 'test-password-hash')
+  `).run(Date.parse(joinedAt));
+
+  const sam = { username: "sam", displayName: "Sam", joinedAt };
+  assert.deepEqual(findPublicUserProfile(db, "sam"), { ...sam, solvedProblems: 0, totalAttempts: 0 });
+  assert.equal(findPublicUserProfile(db, "unknown"), null);
+
+  recordSubmission(db, alex.id, "CL001", { type: "Predict Output", text: "19" });
+  recordSubmission(db, alex.id, "CL001", { type: "Predict Output", text: "19" });
+  recordSubmission(db, alex.id, "CL002", { type: "Find the Error", optionKey: "a" });
+  recordSubmission(db, 2, "CL002", { type: "Find the Error", optionKey: "b" });
+
+  const alexProfile = findPublicUserProfile(db, "alex");
+  assert.equal(alexProfile?.solvedProblems, 1);
+  assert.equal(alexProfile?.totalAttempts, 3);
+  assert.deepEqual(findPublicUserProfile(db, "sam"), { ...sam, solvedProblems: 1, totalAttempts: 1 });
 });
 
 test("migrations and reseeding preserve problem IDs, users, and submission history", (t) => {

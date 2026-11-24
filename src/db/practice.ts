@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type {
   CurrentUser, ProblemDetail, ProblemDifficulty, ProblemStatus, ProblemSummary, ProblemType,
-  SingleSelectType, SubmissionView, Verdict,
+  PublicUserProfile, SingleSelectType, SubmissionView, Verdict,
 } from "../lib/practice";
 import { derivePracticeStats } from "../server/practice-stats";
 import { inTransaction } from "./connection";
@@ -17,6 +17,25 @@ export function findUser(db: DatabaseSync, username: string): CurrentUser | null
     displayName: String(row.display_name),
     timeZone: String(row.time_zone),
     role: row.role as CurrentUser["role"],
+  } : null;
+}
+
+export function findPublicUserProfile(db: DatabaseSync, username: string): PublicUserProfile | null {
+  const row = db.prepare(`
+    SELECT u.username, u.display_name, u.created_at,
+      COUNT(s.id) AS total_attempts,
+      COUNT(DISTINCT CASE WHEN s.verdict = 'AC' THEN s.problem_id END) AS solved_problems
+    FROM users u
+    LEFT JOIN submissions s ON s.user_id = u.id
+    WHERE u.username = ?
+    GROUP BY u.id
+  `).get(username);
+  return row ? {
+    username: String(row.username),
+    displayName: String(row.display_name),
+    joinedAt: new Date(Number(row.created_at)).toISOString(),
+    solvedProblems: Number(row.solved_problems),
+    totalAttempts: Number(row.total_attempts),
   } : null;
 }
 
