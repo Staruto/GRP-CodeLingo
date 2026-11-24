@@ -12,9 +12,10 @@
     "lint": "eslint",
     "db:migrate": "node --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/seed.ts",
-    "test:db": "tsx --test tests/practice.test.ts"
+    "test:db": "tsx --test tests/practice.test.ts && node --conditions=react-server --import tsx --test tests/accounts.test.ts"
   },
   "dependencies": {
+    "argon2": "^0.45.2",
     "gray-matter": "^4.0.3",
     "next": "16.4.6",
     "react": "19.3.0",
