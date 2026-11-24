@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { DatabaseSync } from "node:sqlite";
+import type { UserRole } from "../lib/practice";
 import { inTransaction } from "./connection";
 
 export function createAccount(
@@ -17,5 +18,22 @@ export function createAccount(
     id: Number(user.id),
     username: String(user.username),
     displayName: String(user.display_name),
+  } : null;
+}
+
+export function findAccountCredentials(db: DatabaseSync, username: string) {
+  const row = db.prepare(`
+    SELECT id, username, display_name, role, password_hash FROM users
+    WHERE username = ? COLLATE NOCASE
+  `).get(username);
+
+  return row ? {
+    account: {
+      id: Number(row.id),
+      username: String(row.username),
+      displayName: String(row.display_name),
+      role: row.role as UserRole,
+    },
+    passwordHash: typeof row.password_hash === "string" ? row.password_hash : null,
   } : null;
 }

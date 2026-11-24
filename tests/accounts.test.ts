@@ -8,7 +8,9 @@ import { openDatabase } from "../src/db/connection";
 import { migrate } from "../src/db/migrate";
 import { findUser } from "../src/db/practice";
 import { seed } from "../src/db/seed";
+import { getCurrentUser } from "../src/server/practice";
 import { registerAccount } from "../src/server/register-account";
+import { verifyLoginCredentials } from "../src/server/verify-login-credentials";
 
 function accountDatabase(t: TestContext) {
   const directory = mkdtempSync(join(tmpdir(), "codelingo-accounts-"));
@@ -134,4 +136,48 @@ test("invalid registration inputs and mock mode do not create accounts", async (
   delete process.env.CODELINGO_DATA_SOURCE;
   assert.deepEqual(await registerAccount(registration), { ok: false, error: "unsupported" });
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM users").get()?.count, 1);
+});
+
+test("verifies a registered password and returns only safe fields with the stored role", async (t) => {
+  const db = accountDatabase(t);
+  const result = await registerAccount(registration);
+  assert.ok(result.ok);
+  const profile = await getCurrentUser();
+  assert.equal(profile?.username, "alex");
+  const credentials = { username: "  NEW_USER  ", password: registration.password };
+  assert.deepEqual(await verifyLoginCredentials(credentials), {
+    ok: true, account: { ...result.account, role: "user" },
+  });
+
+  db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(result.account.id);
+  assert.deepEqual(await verifyLoginCredentials(credentials), {
+    ok: true, account: { ...result.account, role: "admin" },
+  });
+  assert.deepEqual(await getCurrentUser(), profile);
+});
+
+test("returns the same error for an incorrect password, unknown username, and legacy account", async (t) => {
+  accountDatabase(t);
+  assert.equal((await registerAccount(registration)).ok, true);
+  const error = { ok: false, error: "invalid-credentials" };
+  assert.deepEqual(await verifyLoginCredentials({ username: "new_user", password: registration.password.trim() }), error);
+  assert.deepEqual(await verifyLoginCredentials({ username: "missing", password: registration.password }), error);
+  assert.deepEqual(await verifyLoginCredentials({ username: "Alex", password: registration.password }), error);
+});
+
+test("rejects malformed credentials and does not report success in mock mode", async (t) => {
+  accountDatabase(t);
+  const { password } = registration;
+  for (const input of [
+    undefined, "new_user", [], {}, { username: "new_user" }, { username: null, password },
+    { username: "user@example.com", password }, { username: "x".repeat(65), password },
+    { username: "new_user", password: 123 }, { username: "new_user", password: "x".repeat(257) },
+    { username: "new_user", password: password + "\0" },
+  ]) {
+    assert.deepEqual(await verifyLoginCredentials(input), { ok: false, error: "invalid-input" });
+  }
+
+  assert.equal((await registerAccount(registration)).ok, true);
+  delete process.env.CODELINGO_DATA_SOURCE;
+  assert.deepEqual(await verifyLoginCredentials(registration), { ok: false, error: "unsupported" });
 });

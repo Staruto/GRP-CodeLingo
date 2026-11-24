@@ -1,14 +1,19 @@
 import type { CurrentUser } from "./practice";
 
-export type RegistrationInput = {
+export type LoginInput = {
   username: string;
-  email: string;
   password: string;
 };
+
+export type RegistrationInput = LoginInput & { email: string };
 
 export type RegistrationResult =
   | { ok: true; account: Pick<CurrentUser, "id" | "username" | "displayName"> }
   | { ok: false; error: "invalid-input" | "account-conflict" | "unsupported" | "unavailable" };
+
+export type LoginResult =
+  | { ok: true; account: Pick<CurrentUser, "id" | "username" | "displayName" | "role"> }
+  | { ok: false; error: "invalid-input" | "invalid-credentials" | "unsupported" | "unavailable" };
 
 function canonicalUsername(value: unknown) {
   if (typeof value !== "string" || value.length > 64) return null;
@@ -34,10 +39,16 @@ function canonicalEmail(value: unknown) {
   return validLocal && validDomain ? email : null;
 }
 
-export function parseRegistrationInput(input: unknown): RegistrationInput | null {
+export function parseLoginInput(input: unknown): LoginInput | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return null;
-  const { username: rawUsername, email: rawEmail, password } = input as Partial<RegistrationInput>;
+  const { username: rawUsername, password } = input as Partial<LoginInput>;
   const username = canonicalUsername(rawUsername);
-  const email = canonicalEmail(rawEmail);
-  return username && email && validPassword(password) ? { username, email, password } : null;
+  return username && validPassword(password) ? { username, password } : null;
+}
+
+export function parseRegistrationInput(input: unknown): RegistrationInput | null {
+  const credentials = parseLoginInput(input);
+  if (!credentials) return null;
+  const email = canonicalEmail((input as Partial<RegistrationInput>).email);
+  return email ? { ...credentials, email } : null;
 }
