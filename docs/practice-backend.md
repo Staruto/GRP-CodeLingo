@@ -6,7 +6,7 @@ Follow the [README setup](../README.md#getting-started) to run CodeLingo locally
 
 | Feature | Default mock app | Local SQLite practice |
 | --- | --- | --- |
-| Catalogue | 12 example entries. CL001 and CL002 have detail pages. | CL001 and CL002 are seeded with complete content. |
+| Catalogue | 13 example entries. CL001, CL002 and CL013 have detail pages. | CL001, CL002 and CL013 are seeded with complete content. |
 | Grading | The answer form is a preview. Sample results are at `/submissions/SUB-001` and `/submissions/SUB-002`. | Submit an answer as Alex and open the saved result at `/submissions/<uuid>`. |
 | Home chart | Labelled example counts. | The number of problems Alex first solved each day. |
 
@@ -71,8 +71,9 @@ database without removing a teammate's existing test data.
 - A Server Action validates and grades each attempt, then appends it with
   verdict `AC` or `WA`. Predict Output comparisons normalize line endings and
   ignore trailing spaces, trailing tabs, and final blank lines. Leading spaces,
-  internal spacing, and case still matter. Find the Error compares the stable
-  option key. SQLite rejects edits and deletes of saved attempts.
+  internal spacing, and case still matter. Find the Error and Complexity Analysis
+  compare the selected option's stable key with the stored key. SQLite rejects
+  edits and deletes of saved attempts.
 - SQLite stores timestamps in UTC. Alex's timezone is `Asia/Shanghai`. The
   monthly chart counts each problem on the date of its first `AC`. Any day with
   an `AC` can extend a streak. Topic accuracy divides accepted attempts by all
@@ -81,15 +82,16 @@ database without removing a teammate's existing test data.
 
 ## Add a problem
 
-1. Add a directory under `content/problems/` with the next unused slug, such
-   as `CL003`. Use [CL001](../content/problems/CL001/problem.md) for Predict
-   Output or [CL002](../content/problems/CL002/problem.md) for Find the Error.
+1. Add a directory under `content/problems/` with a slug unused by both the
+   content and the mock catalogue. See [CL001](../content/problems/CL001/problem.md)
+   for Predict Output, [CL002](../content/problems/CL002/problem.md) for Find
+   the Error, or [CL013](../content/problems/CL013/problem.md) for Complexity Analysis.
 2. Add `problem.md` with YAML front matter for title, type, difficulty, and tags,
-   plus a Markdown statement. For Find the Error, include ordered options with
+   plus a Markdown statement. For single-select questions, include ordered options with
    stable keys. Put the C code in `example.c`. Statements render on the server
    with sanitization and syntax highlighting.
 3. Add `answer.json` with `expectedOutput` for Predict Output or
-   `correctOptionKey` for Find the Error. Review the statement, code, options,
+   `correctOptionKey` for single-select questions. Review the statement, code, options,
    and key together. Anyone with repository access can read the committed keys.
 4. Run `npm run db:seed` and check the new problem in SQLite mode. The seed
    inserts new slugs and preserves existing problem records and submissions.

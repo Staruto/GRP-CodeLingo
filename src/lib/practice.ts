@@ -1,7 +1,9 @@
-export const problemTypes = ["Predict Output", "Find the Error"] as const;
+export const singleSelectTypes = ["Find the Error", "Complexity Analysis"] as const;
+export const problemTypes = ["Predict Output", ...singleSelectTypes] as const;
 export const problemDifficulties = ["Easy", "Medium", "Hard"] as const;
 
 export type ProblemType = (typeof problemTypes)[number];
+export type SingleSelectType = (typeof singleSelectTypes)[number];
 export type ProblemDifficulty = (typeof problemDifficulties)[number];
 export type ProblemStatus = "Not attempted" | "Attempted" | "Solved";
 export type Verdict = "AC" | "WA";
@@ -32,7 +34,7 @@ export type ProblemDetail = Omit<ProblemSummary, "type"> & {
   codeLanguage: string;
 } & (
   | { type: "Predict Output" }
-  | { type: "Find the Error"; options: readonly ProblemOption[] }
+  | { type: SingleSelectType; options: readonly ProblemOption[] }
 );
 
 export type SubmissionView = {

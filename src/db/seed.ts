@@ -18,7 +18,7 @@ function readProblem(slug: string) {
     return { ...problem, options: [], expectedOutput: answer.expectedOutput, correctOptionKey: null };
   }
 
-  if (problem.type === "Find the Error" &&
+  if ("options" in problem &&
     "correctOptionKey" in answer && typeof answer.correctOptionKey === "string" &&
     !("expectedOutput" in answer) && problem.options.some(({ key }) => key === answer.correctOptionKey)) {
     return { ...problem, expectedOutput: null, correctOptionKey: answer.correctOptionKey };

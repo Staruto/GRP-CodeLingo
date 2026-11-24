@@ -1,23 +1,26 @@
 "use client";
 
 import { useActionState } from "react";
-import type { ProblemOption } from "@/lib/practice";
+import type { ProblemOption, ProblemType } from "@/lib/practice";
 
 type AnswerFormProps = {
+  type: ProblemType;
   options?: readonly ProblemOption[];
   action?: (previousError: string | null, data: FormData) => Promise<string>;
 };
 
 const inactiveAction = async () => "Grading is available in local practice mode.";
 
-export function AnswerForm({ options, action }: AnswerFormProps) {
+export function AnswerForm({ type, options, action }: AnswerFormProps) {
   const [error, formAction, pending] = useActionState(action ?? inactiveAction, null);
 
   return (
     <form action={action ? formAction : undefined}>
       {options ? (
         <fieldset className="mt-4">
-          <legend className="text-sm font-bold">Replacement expression</legend>
+          <legend className="text-sm font-bold">
+            {type === "Complexity Analysis" ? "Time complexity" : "Replacement expression"}
+          </legend>
           <div className="mt-2 space-y-2">
             {options.map((option) => (
               <label

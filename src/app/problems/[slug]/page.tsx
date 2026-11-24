@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: ProblemPageProps) {
 export default async function ProblemPage({ params }: ProblemPageProps) {
   const problem = await requireProblem(params);
   const isMock = !usesLocalDatabase();
-  const action = !isMock && await getCurrentUser() ? submitAnswer.bind(null, problem.slug) : undefined;
+  const action = !isMock && await getCurrentUser() ? submitAnswer.bind(null, problem.slug, problem.type) : undefined;
 
   return (
     <article aria-labelledby="problem-title" className="space-y-8">
@@ -84,7 +84,11 @@ export default async function ProblemPage({ params }: ProblemPageProps) {
           className="rounded-md border border-border bg-background p-4 sm:p-5"
         >
           <h2 id="answer-heading" className="section-heading">Your answer</h2>
-          <AnswerForm options={problem.type === "Find the Error" ? problem.options : undefined} action={action} />
+          <AnswerForm
+            type={problem.type}
+            options={"options" in problem ? problem.options : undefined}
+            action={action}
+          />
         </section>
       </div>
     </article>

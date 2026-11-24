@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import matter from "gray-matter";
-import { problemDifficulties, problemTypes, type ProblemDetail, type ProblemOption } from "../lib/practice";
+import { problemDifficulties, problemTypes, singleSelectTypes, type ProblemDetail, type ProblemOption } from "../lib/practice";
 
 export const problemContentDirectory = join(process.cwd(), "content", "problems");
 
@@ -42,7 +42,7 @@ export function readPublicProblem(slug: string): ProblemDetail {
     codeLanguage: "c",
   };
   if (type === "Predict Output" && options === undefined) return { ...detail, type };
-  if (type === "Find the Error" && Array.isArray(options) && options.length >= 2 &&
+  if (singleSelectTypes.includes(type) && Array.isArray(options) && options.length >= 2 &&
     options.every(isOption) && new Set(options.map(({ key }) => key)).size === options.length) {
     return { ...detail, type, options: options.map(({ key, label }) => ({ key, label })) };
   }

@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { openDatabase } from "../src/db/connection";
+import { readPublicProblem } from "../src/db/content";
 import { devProfile } from "../src/db/dev-profile";
 import { migrate } from "../src/db/migrate";
 import {
   findProblem, findSubmission, findUser, listProblems, readPracticeStats, recordSubmission,
 } from "../src/db/practice";
 import { seed } from "../src/db/seed";
+import { filterProblems } from "../src/lib/practice";
 
 function practiceDatabase(t: TestContext) {
   const db = openDatabase(":memory:");
@@ -88,7 +90,63 @@ test("migrations and reseeding preserve problem IDs, users, and submission histo
   assert.equal(findSubmission(db, id, alex.id)?.verdict, "AC");
 });
 
-test("both question types are graded, inputs are preserved, and submission lookup is owner-scoped", (t) => {
+function databaseBeforeComplexityMigration(t: TestContext) {
+  const db = openDatabase(":memory:");
+  t.after(() => db.close());
+  db.exec("CREATE TABLE schema_migrations (name TEXT PRIMARY KEY) STRICT");
+  for (const file of ["001_practice.sql", "002_user_roles.sql", "003_account_credentials.sql"]) {
+    db.exec(readFileSync(`src/db/migrations/${file}`, "utf8"));
+    db.prepare("INSERT INTO schema_migrations VALUES (?)").run(file);
+  }
+  db.exec(`
+    INSERT INTO users (id, username, display_name, time_zone, role, created_at)
+      VALUES (7, 'legacy', 'Legacy Admin', 'UTC', 'admin', 100);
+    INSERT INTO problems VALUES (15, 'old', 'Old question', 'Find the Error', 'Easy', 'Fix it.', 'i++;', 'c');
+    INSERT INTO tags VALUES (3, 'Loops');
+    INSERT INTO problem_tags VALUES (15, 3);
+    INSERT INTO problem_options VALUES (15, 'keep', 'i++', 1), (15, 'change', 'i--', 2);
+    INSERT INTO problem_answers VALUES (15, NULL, 'change');
+    INSERT INTO submissions VALUES
+      ('first', 7, 15, 'WA', 110, NULL, 'keep'), ('second', 7, 15, 'AC', 120, NULL, 'change');
+  `);
+  return db;
+}
+
+test("the complexity migration preserves existing problem content, option keys and attempts", (t) => {
+  const db = databaseBeforeComplexityMigration(t);
+  const tables = ["users", "problems", "tags", "problem_tags", "problem_options", "problem_answers", "submissions"];
+  const snapshot = () => tables.map((table) => db.prepare(`SELECT * FROM ${table} ORDER BY 1, 2`).all());
+  const before = snapshot();
+
+  migrate(db);
+  migrate(db);
+  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+  assert.equal(db.prepare("PRAGMA foreign_keys").get()?.foreign_keys, 1);
+  assert.throws(() => db.exec("UPDATE problems SET question_type = 'Unknown' WHERE id = 15"), /CHECK/);
+  seed(db);
+  assert.equal(findProblem(db, "CL013", 7)?.type, "Complexity Analysis");
+  assert.equal(seed(db), 0);
+});
+
+test("a failed complexity migration rolls back the schema and restores foreign key enforcement", (t) => {
+  const db = databaseBeforeComplexityMigration(t);
+  db.exec(`
+    PRAGMA foreign_keys = OFF;
+    INSERT INTO problem_tags VALUES (15, 999);
+    PRAGMA foreign_keys = ON;
+  `);
+  const schema = () => db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all();
+  const before = schema();
+  assert.throws(() => migrate(db), /foreign key/i);
+  assert.deepEqual(schema(), before);
+  assert.equal(db.prepare("SELECT 1 FROM schema_migrations WHERE name = '004_complexity_analysis.sql'").get(), undefined);
+  assert.equal(db.prepare("SELECT tag_id FROM problem_tags WHERE tag_id = 999").get()?.tag_id, 999);
+  assert.equal(findSubmission(db, "second", 7)?.verdict, "AC");
+  assert.equal(db.prepare("PRAGMA foreign_keys").get()?.foreign_keys, 1);
+});
+
+test("Predict Output and Find the Error preserve inputs and scope submission lookup to the owner", (t) => {
   const { db, alex } = practiceDatabase(t);
   const statuses = (userId: number | null) => listProblems(db, userId)
     .filter(({ slug }) => slug === "CL001" || slug === "CL002")
@@ -132,6 +190,48 @@ test("both question types are graded, inputs are preserved, and submission looku
   assert.equal(problem?.type, "Find the Error");
   assert.deepEqual(problem.options.map(({ key }) => key), ["a", "b", "c", "d"]);
   assert.doesNotMatch(JSON.stringify(problem), /correctOptionKey|correct_option_key|expectedOutput|expected_output/);
+});
+
+test("complexity questions expose ordered choices and grade the submitted stable key", (t) => {
+  const { db, alex } = practiceDatabase(t);
+  const slug = "CL013";
+  const type = "Complexity Analysis";
+  const catalogue = listProblems(db, null);
+  const matches = filterProblems(catalogue, { type, query: "", difficulty: "", tag: "" });
+  assert.ok(matches.some((problem) => problem.slug === slug));
+  assert.ok(matches.every((problem) => problem.type === type));
+
+  const content = readPublicProblem(slug);
+  assert.equal(content.type, type);
+  assert.equal(content.codeLanguage, "c");
+  assert.ok(content.statementMarkdown && content.exampleCode);
+  assert.deepEqual(content.options.map((option) => option.key), ["a", "b", "c", "d"]);
+  const detail = findProblem(db, slug, null);
+  assert.deepEqual(detail, content);
+  assert.doesNotMatch(JSON.stringify([catalogue, content, detail]), /correctOptionKey|correct_option_key|expectedOutput|expected_output/);
+
+  const wrong = recordSubmission(db, alex.id, slug, { type, optionKey: "a" });
+  assert.ok(wrong);
+  assert.equal(findProblem(db, slug, alex.id)?.status, "Attempted");
+  const correct = recordSubmission(db, alex.id, slug, { type, optionKey: "b" });
+  assert.ok(correct);
+  assert.equal(findProblem(db, slug, alex.id)?.status, "Solved");
+  const selectedKey = db.prepare("SELECT selected_option_key FROM submissions WHERE id = ?");
+  for (const [id, key, label, verdict] of [[wrong, "a", "O(1)", "WA"], [correct, "b", "O(log n)", "AC"]]) {
+    const submission = findSubmission(db, id, alex.id);
+    assert.equal(submission?.submittedAnswer, label);
+    assert.equal(submission?.verdict, verdict);
+    assert.equal(selectedKey.get(id)?.selected_option_key, key);
+  }
+
+  for (const optionKey of ["", "unknown", "O(log n)"]) {
+    assert.equal(recordSubmission(db, alex.id, slug, { type, optionKey }), null);
+  }
+  assert.equal(recordSubmission(db, alex.id, "unknown", { type, optionKey: "b" }), null);
+  assert.equal(recordSubmission(db, alex.id, "CL002", { type, optionKey: "b" }), null);
+  assert.equal(recordSubmission(db, alex.id, slug, { type: "Find the Error", optionKey: "b" }), null);
+  assert.equal(recordSubmission(db, alex.id, slug, { type: "Predict Output", text: "b" }), null);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM submissions").get()?.count, 2);
 });
 
 test("SQLite rejects modifications, replacement, invalid verdicts, and cross-problem choices", (t) => {
