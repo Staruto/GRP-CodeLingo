@@ -17,6 +17,12 @@ export type CurrentUser = {
   role: UserRole;
 };
 
+export type PublicUserProfile = Pick<CurrentUser, "username" | "displayName"> & {
+  joinedAt: string;
+  solvedProblems: number;
+  totalAttempts: number;
+};
+
 export type ProblemSummary = {
   slug: string;
   title: string;
