@@ -1,15 +1,20 @@
 import "server-only";
 import { readPublicProblem } from "@/db/content";
 import { devProfile } from "@/db/dev-profile";
-import type { PracticeStats, ProblemDetail, ProblemSummary, SubmissionView } from "@/lib/practice";
+import type { PracticeStats, ProblemDetail, ProblemStatus, ProblemSummary, SubmissionView } from "@/lib/practice";
 import { practiceCalendar } from "./practice-stats";
 
-export const mockProblemSlugs = ["CL001", "CL002"] as const;
+const sampleStatuses = new Map<string, ProblemStatus>([
+  ["CL001", "Solved"],
+  ["CL002", "Attempted"],
+  ["CL013", "Not attempted"],
+]);
+export const mockProblemSlugs = [...sampleStatuses.keys()];
 export const mockSubmissionIds = ["SUB-001", "SUB-002"] as const;
 
 export function getMockProblem(slug: string): ProblemDetail | null {
-  if (slug !== "CL001" && slug !== "CL002") return null;
-  return { ...readPublicProblem(slug), status: slug === "CL001" ? "Solved" : "Attempted" };
+  const status = sampleStatuses.get(slug);
+  return status ? { ...readPublicProblem(slug), status } : null;
 }
 
 const cataloguePreviews: readonly ProblemSummary[] = [
@@ -100,7 +105,7 @@ export function getMockProblems(): readonly ProblemSummary[] {
     const { title, type, difficulty, tags, status } = getMockProblem(slug)!;
     return { slug, title, type, difficulty, tags, status };
   });
-  return [...completed, ...cataloguePreviews];
+  return [...completed, ...cataloguePreviews].sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 export function getMockSubmission(id: string): SubmissionView | null {

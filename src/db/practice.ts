@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type {
-  CurrentUser, ProblemDetail, ProblemDifficulty, ProblemStatus, ProblemSummary, ProblemType, SubmissionView, Verdict,
+  CurrentUser, ProblemDetail, ProblemDifficulty, ProblemStatus, ProblemSummary, ProblemType,
+  SingleSelectType, SubmissionView, Verdict,
 } from "../lib/practice";
 import { derivePracticeStats } from "../server/practice-stats";
 import { inTransaction } from "./connection";
@@ -113,7 +114,7 @@ export function findSubmission(db: DatabaseSync, id: string, userId: number): Su
   } : null;
 }
 
-type AnswerInput = { type: "Predict Output"; text: string } | { type: "Find the Error"; optionKey: string };
+type AnswerInput = { type: "Predict Output"; text: string } | { type: SingleSelectType; optionKey: string };
 
 function normalizeOutput(answer: string) {
   return answer.replace(/\r\n?/g, "\n").replace(/[ \t]+(?=\n|$)/g, "").replace(/\n+$/, "");
