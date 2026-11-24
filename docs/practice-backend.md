@@ -18,6 +18,20 @@ For an existing local database, rerun `npm run db:migrate` to add the user role
 while preserving users and submissions. Alex and existing users default to
 `user`. The user model also supports `admin` for explicit test fixtures.
 
+Run `npm run db:migrate` to add account credentials to an existing database.
+The migration keeps existing roles and practice history. Alex continues to be
+the seeded practice identity and has no email or password.
+
+`registerAccount` in `src/server/register-account.ts` accepts a username, email,
+and password in local SQLite mode. Usernames use 3–32 ASCII letters, digits,
+underscores, or hyphens. Both the username and email are trimmed and lowercased.
+Passwords are preserved as entered and must contain at least 15 Unicode code
+points and at most 256 UTF-16 code units. New accounts receive the `user` role.
+The server stores Argon2id hashes with library-generated salts and the
+[OWASP minimum settings](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
+of 19 MiB of memory, two passes, and one lane. Registration collects email
+without verifying ownership. Mock mode returns `unsupported`.
+
 ## Reproduce a practice session
 
 1. Start with a fresh database. For a separate run, set
