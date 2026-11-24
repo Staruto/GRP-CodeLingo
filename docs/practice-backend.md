@@ -32,6 +32,12 @@ The server stores Argon2id hashes with library-generated salts and the
 of 19 MiB of memory, two passes, and one lane. Registration collects email
 without verifying ownership. Mock mode returns `unsupported`.
 
+`verifyLoginCredentials` in `src/server/verify-login-credentials.ts` checks a
+username and password in local SQLite mode. It returns a minimal account
+summary with the stored role on success, and `invalid-credentials` for an
+unknown username or incorrect password. Each call checks credentials only.
+Practice continues to use Alex, and mock mode returns `unsupported`.
+
 ## Reproduce a practice session
 
 1. Start with a fresh database. For a separate run, set
