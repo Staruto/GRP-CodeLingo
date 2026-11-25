@@ -28,5 +28,7 @@ export async function submitAnswer(slug: string, type: ProblemType, _previousErr
   revalidatePath("/");
   revalidatePath("/problems");
   revalidatePath(`/problems/${slug}`);
+  revalidatePath("/submissions");
+  revalidatePath("/submissions/me");
   redirect(`/submissions/${id}`);
 }

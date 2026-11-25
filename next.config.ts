@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const localPractice = process.env.NODE_ENV === "development" && process.env.CODELINGO_DATA_SOURCE === "sqlite";
 
 const nextConfig: NextConfig = {
-  // Local submission pages resolve ownership before streaming a response.
+  // Local detail pages can return a 404 before streaming a response.
   cacheComponents: !localPractice,
   partialPrefetching: !localPractice,
   outputFileTracingExcludes: {

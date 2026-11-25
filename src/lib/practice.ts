@@ -43,14 +43,19 @@ export type ProblemDetail = Omit<ProblemSummary, "type"> & {
   | { type: SingleSelectType; options: readonly ProblemOption[] }
 );
 
-export type SubmissionView = {
+export const submissionHistoryLimit = 50;
+
+export type SubmissionSummary = {
   id: string;
   submittedAt: string;
   username: string;
-  timeZone: string;
+  problem: Pick<ProblemSummary, "slug" | "title">;
+  verdict: Verdict;
+};
+
+export type SubmissionView = Omit<SubmissionSummary, "problem"> & {
   problem: Pick<ProblemSummary, "slug" | "title" | "type">;
   submittedAnswer: string;
-  verdict: Verdict;
 };
 
 export type PracticeDay = { day: number; date: string; solved: number | null };

@@ -6,7 +6,8 @@ import { readPublicProblem } from "../src/db/content";
 import { devProfile } from "../src/db/dev-profile";
 import { migrate } from "../src/db/migrate";
 import {
-  findProblem, findPublicUserProfile, findSubmission, findUser, listProblems, readPracticeStats, recordSubmission,
+  findProblem, findPublicUserProfile, findSubmission, findUser, listProblems,
+  listPublicSubmissions, listUserSubmissions, readPracticeStats, recordSubmission,
 } from "../src/db/practice";
 import { seed } from "../src/db/seed";
 import { filterProblems } from "../src/lib/practice";
@@ -110,7 +111,7 @@ test("migrations and reseeding preserve problem IDs, users, and submission histo
   assert.equal(seed(db), 0);
   assert.deepEqual(readProblems(), problems);
   assert.deepEqual(findUser(db, "alex"), alex);
-  assert.equal(findSubmission(db, id, alex.id)?.verdict, "AC");
+  assert.equal(findSubmission(db, id)?.verdict, "AC");
 });
 
 function databaseBeforeComplexityMigration(t: TestContext) {
@@ -165,11 +166,11 @@ test("a failed complexity migration rolls back the schema and restores foreign k
   assert.deepEqual(schema(), before);
   assert.equal(db.prepare("SELECT 1 FROM schema_migrations WHERE name = '004_complexity_analysis.sql'").get(), undefined);
   assert.equal(db.prepare("SELECT tag_id FROM problem_tags WHERE tag_id = 999").get()?.tag_id, 999);
-  assert.equal(findSubmission(db, "second", 7)?.verdict, "AC");
+  assert.equal(findSubmission(db, "second")?.verdict, "AC");
   assert.equal(db.prepare("PRAGMA foreign_keys").get()?.foreign_keys, 1);
 });
 
-test("Predict Output and Find the Error preserve inputs and scope submission lookup to the owner", (t) => {
+test("Predict Output and Find the Error preserve inputs and track problem status per user", (t) => {
   const { db, alex } = practiceDatabase(t);
   const statuses = (userId: number | null) => listProblems(db, userId)
     .filter(({ slug }) => slug === "CL001" || slug === "CL002")
@@ -181,20 +182,20 @@ test("Predict Output and Find the Error preserve inputs and scope submission loo
   const correct = recordSubmission(db, alex.id, "CL001", { type: "Predict Output", text: rawText });
   assert.ok(correct);
   assert.match(correct, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.equal(findSubmission(db, correct, alex.id)?.submittedAnswer, rawText);
-  assert.equal(findSubmission(db, correct, alex.id)?.verdict, "AC");
+  assert.equal(findSubmission(db, correct)?.submittedAnswer, rawText);
+  assert.equal(findSubmission(db, correct)?.verdict, "AC");
 
   const wrongText = recordSubmission(db, alex.id, "CL001", { type: "Predict Output", text: " 19" });
   const wrongChoice = recordSubmission(db, alex.id, "CL002", { type: "Find the Error", optionKey: "a" });
   assert.ok(wrongText && wrongChoice);
-  assert.equal(findSubmission(db, wrongText, alex.id)?.verdict, "WA");
-  assert.equal(findSubmission(db, wrongChoice, alex.id)?.verdict, "WA");
+  assert.equal(findSubmission(db, wrongText)?.verdict, "WA");
+  assert.equal(findSubmission(db, wrongChoice)?.verdict, "WA");
   assert.deepEqual(statuses(alex.id), ["Solved", "Attempted"]);
 
   const correctChoice = recordSubmission(db, alex.id, "CL002", { type: "Find the Error", optionKey: "b" });
   assert.ok(correctChoice);
-  assert.equal(findSubmission(db, correctChoice, alex.id)?.verdict, "AC");
-  assert.equal(findSubmission(db, correctChoice, alex.id)?.submittedAnswer, "count - 1");
+  assert.equal(findSubmission(db, correctChoice)?.verdict, "AC");
+  assert.equal(findSubmission(db, correctChoice)?.submittedAnswer, "count - 1");
   assert.deepEqual(statuses(alex.id), ["Solved", "Solved"]);
 
   assert.equal(recordSubmission(db, alex.id, "CL002", { type: "Find the Error", optionKey: "unknown" }), null);
@@ -204,8 +205,6 @@ test("Predict Output and Find the Error preserve inputs and scope submission loo
 
   db.prepare("INSERT INTO users (id, username, display_name, time_zone, created_at) VALUES (?, ?, ?, ?, ?)")
     .run(2, "sam", "Sam", "UTC", 0);
-  assert.equal(findSubmission(db, correct, 2), null);
-  assert.equal(findSubmission(db, "missing", alex.id), null);
   assert.deepEqual(statuses(2), initialStatuses);
   assert.deepEqual(statuses(null), [null, null]);
 
@@ -213,6 +212,64 @@ test("Predict Output and Find the Error preserve inputs and scope submission loo
   assert.equal(problem?.type, "Find the Error");
   assert.deepEqual(problem.options.map(({ key }) => key), ["a", "b", "c", "d"]);
   assert.doesNotMatch(JSON.stringify(problem), /correctOptionKey|correct_option_key|expectedOutput|expected_output/);
+});
+
+test("submission lists return the newest 50 attempts in scope with stable ordering for ties", (t) => {
+  const { db, alex } = practiceDatabase(t);
+  db.exec(`
+    INSERT INTO users (id, username, display_name, time_zone, created_at) VALUES (2, 'sam', 'Sam', 'UTC', 0)
+  `);
+  const insert = db.prepare(`
+    INSERT INTO submissions (id, user_id, problem_id, verdict, submitted_at, submitted_text)
+    SELECT ?, ?, id, 'AC', ?, '19' FROM problems WHERE slug = 'CL001'
+  `);
+  const times = Array.from({ length: 52 }, (_, index) => index);
+  for (const time of times) {
+    insert.run(`alex-${time}`, alex.id, time);
+    insert.run(`sam-${time}`, 2, time);
+  }
+
+  const newestFirst = times.reverse();
+  assert.deepEqual(
+    listPublicSubmissions(db).map(({ id }) => id),
+    newestFirst.slice(0, 25).flatMap((time) => [`sam-${time}`, `alex-${time}`]),
+  );
+  assert.deepEqual(
+    listUserSubmissions(db, alex.id).map(({ id }) => id),
+    newestFirst.slice(0, 50).map((time) => `alex-${time}`),
+  );
+});
+
+test("public submission summaries and detail return only public fields, including for another submitter", (t) => {
+  const { db, alex } = practiceDatabase(t);
+  assert.deepEqual(listPublicSubmissions(db), []);
+  assert.equal(findSubmission(db, "missing"), null);
+  db.exec(`
+    INSERT INTO users (id, username, display_name, time_zone, created_at, role, email, password_hash)
+    VALUES (2, 'sam', 'Sam', 'Europe/Paris', 0, 'admin', 'sam@example.test', 'test-password-hash')
+  `);
+  const submittedAt = "2026-11-01T01:23:45.000Z";
+  const id = recordSubmission(db, 2, "CL002", { type: "Find the Error", optionKey: "a" }, Date.parse(submittedAt));
+  assert.ok(id);
+  // Catch reads of private columns even when the mapper drops them from the response.
+  db.function("private_account_field", (name) => assert.fail(`Public submission query read users.${name}`));
+  db.exec(`
+    CREATE TEMP VIEW users AS SELECT id, username,
+      private_account_field('email') AS email,
+      private_account_field('password_hash') AS password_hash,
+      private_account_field('role') AS role
+    FROM main.users
+  `);
+  const problem = { slug: "CL002", title: "Last Item in an Array" };
+  const summary = { id, username: "sam", problem, submittedAt, verdict: "WA" };
+  assert.deepEqual(listPublicSubmissions(db), [summary]);
+  assert.deepEqual(listUserSubmissions(db, 2), [summary]);
+  assert.deepEqual(listUserSubmissions(db, alex.id), []);
+  assert.deepEqual(findSubmission(db, id), {
+    ...summary,
+    problem: { ...problem, type: "Find the Error" },
+    submittedAnswer: "count + 1",
+  });
 });
 
 test("complexity questions expose ordered choices and grade the submitted stable key", (t) => {
@@ -241,7 +298,7 @@ test("complexity questions expose ordered choices and grade the submitted stable
   assert.equal(findProblem(db, slug, alex.id)?.status, "Solved");
   const selectedKey = db.prepare("SELECT selected_option_key FROM submissions WHERE id = ?");
   for (const [id, key, label, verdict] of [[wrong, "a", "O(1)", "WA"], [correct, "b", "O(log n)", "AC"]]) {
-    const submission = findSubmission(db, id, alex.id);
+    const submission = findSubmission(db, id);
     assert.equal(submission?.submittedAnswer, label);
     assert.equal(submission?.verdict, verdict);
     assert.equal(selectedKey.get(id)?.selected_option_key, key);
@@ -277,7 +334,7 @@ test("SQLite rejects modifications, replacement, invalid verdicts, and cross-pro
   assert.throws(() => db.prepare(
     "INSERT INTO submissions VALUES ('unknown-verdict', ?, ?, 'unknown', 0, '19', NULL)",
   ).run(alex.id, problemId), /FOREIGN KEY/);
-  assert.equal(findSubmission(db, id, alex.id)?.verdict, "AC");
+  assert.equal(findSubmission(db, id)?.verdict, "AC");
 });
 
 test("stats use local first solves, accepted streak days, and all graded attempts per tag", (t) => {
