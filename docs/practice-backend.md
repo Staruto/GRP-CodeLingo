@@ -8,11 +8,13 @@ Follow the [README setup](../README.md#getting-started) to run CodeLingo locally
 | --- | --- | --- |
 | Catalogue | 13 example entries. CL001, CL002 and CL013 have detail pages. | CL001, CL002 and CL013 are seeded with complete content. |
 | Grading | The answer form is a preview. Sample results are at `/submissions/SUB-001` and `/submissions/SUB-002`. | Submit an answer as Alex and open the saved result at `/submissions/<uuid>`. |
+| Submission history | `/submissions` shows labelled prototype attempts. | `/submissions` shows the latest 50 attempts across all users. `/submissions/me` shows the latest 50 for the configured development identity. |
 | Home chart | Labelled example counts. | The number of problems Alex first solved each day. |
 
 SQLite runs only in development with `CODELINGO_DATA_SOURCE=sqlite`. The app
-resolves a single seeded identity, Alex. It has no sign-in, profile page, or
-submission-history page yet. The local setup uses the loopback address in the README.
+resolves a single seeded identity, Alex. Credential checks do not create a login
+session or change whose history appears at `/submissions/me`. The local setup
+uses the loopback address in the README.
 
 For an existing local database, rerun `npm run db:migrate` to add the user role
 while preserving users and submissions. Alex and existing users default to
@@ -61,9 +63,9 @@ database without removing a teammate's existing test data.
 ## How data flows
 
 - Pages use typed problem, submission, and stats objects from `src/server/`.
-  `getCurrentUser()` resolves Alex. The submission detail query limits results
-  to the current user, and an unknown or another user's submission returns 404
-  in SQLite mode.
+  `getCurrentUser()` resolves Alex for personal history. Public submission
+  details show the submitter's username, problem, time, submitted answer, and
+  verdict. An unknown submission ID returns a not-found page.
 - The [initial migration](../src/db/migrations/001_practice.sql) defines users,
   problems, tags, problem options, answer keys, verdicts, and submissions.
   Problem URLs use stable slugs. SQLite uses integer user and problem keys

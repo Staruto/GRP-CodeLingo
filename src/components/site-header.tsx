@@ -54,6 +54,7 @@ function SiteNavigationFallback() {
     <nav aria-label="Main navigation" className="order-3 flex w-full gap-6 text-sm sm:order-2 sm:w-auto">
       <Link href="/" className="py-3 font-bold text-muted sm:py-5">Home</Link>
       <Link href="/problems" className="py-3 font-bold text-muted sm:py-5">Problems</Link>
+      <Link href="/submissions" className="py-3 font-bold text-muted sm:py-5">Submissions</Link>
     </nav>
   );
 }

@@ -13,7 +13,7 @@ grey background. Horizontal padding is 16px below 640px, 24px from 640px, and 32
 from 1024px. The header uses the same alignment. Page padding is 32px vertically,
 increasing to 40px from 640px.
 
-The header shows CodeLingo, Home, Problems, and the current profile. Navigation
+The header shows CodeLingo, Home, Problems, Submissions, and the current profile. Navigation
 moves below the brand and profile on mobile. The mock profile links to the
 reserved `/profile` route. In SQLite mode the header shows the seeded user's name.
 
@@ -22,10 +22,12 @@ reserved `/profile` route. In SQLite mode the header shows the seeded user's nam
 | Home | `/` | Implemented |
 | Problem catalogue | `/problems` | Search and filter by question type, difficulty, and tag |
 | Problem detail | `/problems/[slug]` | CL001 and CL002 have statements and answer forms |
+| Public submissions | `/submissions` | Recent practice attempts with links to the submission, problem, and public profile |
+| Personal submissions | `/submissions/me` | Practice history for the configured development identity |
 | Submission detail | `/submissions/[submissionId]` | Sample IDs in mock mode and saved UUIDs in SQLite mode |
 | User profile | `/profile` | Reserved for future work |
 
-The Problems navigation item remains active for nested problem routes. Use
+The Problems and Submissions navigation items remain active on their respective nested routes. Use
 `next/link` for internal navigation.
 
 ## Typography, colour, and spacing

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { submissionHistoryLimit } from "../lib/practice";
 import type {
   CurrentUser, ProblemDetail, ProblemDifficulty, ProblemStatus, ProblemSummary, ProblemType,
-  PublicUserProfile, SingleSelectType, SubmissionView, Verdict,
+  PublicUserProfile, SingleSelectType, SubmissionSummary, SubmissionView, Verdict,
 } from "../lib/practice";
 import { derivePracticeStats } from "../server/practice-stats";
 import { inTransaction } from "./connection";
@@ -114,23 +115,61 @@ export function findProblem(db: DatabaseSync, slug: string, userId: number | nul
   };
 }
 
-export function findSubmission(db: DatabaseSync, id: string, userId: number): SubmissionView | null {
+type SubmissionRow = {
+  id: string;
+  submitted_at: number;
+  verdict: Verdict;
+  username: string;
+  slug: string;
+  title: string;
+};
+
+const submissionColumns = "s.id, s.submitted_at, s.verdict, u.username, p.slug, p.title";
+const submissionTables = `
+  FROM submissions s
+  JOIN users u ON u.id = s.user_id
+  JOIN problems p ON p.id = s.problem_id
+`;
+const submissionListQuery = `SELECT ${submissionColumns} ${submissionTables}`;
+const recentSubmissionsOrder = "ORDER BY s.submitted_at DESC, s.id DESC LIMIT ?";
+
+function toSubmissionSummary(row: SubmissionRow): SubmissionSummary {
+  return {
+    id: row.id,
+    submittedAt: new Date(row.submitted_at).toISOString(),
+    verdict: row.verdict,
+    username: row.username,
+    problem: { slug: row.slug, title: row.title },
+  };
+}
+
+export function listPublicSubmissions(db: DatabaseSync): SubmissionSummary[] {
+  const rows = db.prepare(`${submissionListQuery} ${recentSubmissionsOrder}`)
+    .all(submissionHistoryLimit) as SubmissionRow[];
+  return rows.map(toSubmissionSummary);
+}
+
+export function listUserSubmissions(db: DatabaseSync, userId: number): SubmissionSummary[] {
+  const rows = db.prepare(`${submissionListQuery} WHERE s.user_id = ? ${recentSubmissionsOrder}`)
+    .all(userId, submissionHistoryLimit) as SubmissionRow[];
+  return rows.map(toSubmissionSummary);
+}
+
+export function findSubmission(db: DatabaseSync, id: string): SubmissionView | null {
   const row = db.prepare(`
-    SELECT s.id, s.submitted_at, s.verdict, u.username, u.time_zone, p.slug, p.title, p.question_type,
+    SELECT ${submissionColumns}, p.question_type,
       COALESCE(s.submitted_text, opt.label) AS submitted_answer
-    FROM submissions s JOIN users u ON u.id = s.user_id JOIN problems p ON p.id = s.problem_id
+    ${submissionTables}
     LEFT JOIN problem_options opt ON opt.problem_id = s.problem_id AND opt.option_key = s.selected_option_key
-    WHERE s.id = ? AND s.user_id = ?
-  `).get(id, userId);
-  return row ? {
-    id: String(row.id),
-    submittedAt: new Date(Number(row.submitted_at)).toISOString(),
-    verdict: row.verdict as Verdict,
-    username: String(row.username),
-    timeZone: String(row.time_zone),
-    problem: { slug: String(row.slug), title: String(row.title), type: row.question_type as ProblemType },
-    submittedAnswer: String(row.submitted_answer),
-  } : null;
+    WHERE s.id = ?
+  `).get(id) as (SubmissionRow & { question_type: ProblemType; submitted_answer: string }) | undefined;
+  if (!row) return null;
+  const summary = toSubmissionSummary(row);
+  return {
+    ...summary,
+    problem: { ...summary.problem, type: row.question_type },
+    submittedAnswer: row.submitted_answer,
+  };
 }
 
 type AnswerInput = { type: "Predict Output"; text: string } | { type: SingleSelectType; optionKey: string };

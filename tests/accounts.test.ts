@@ -6,9 +6,9 @@ import { test, type TestContext } from "node:test";
 import { verify } from "argon2";
 import { openDatabase } from "../src/db/connection";
 import { migrate } from "../src/db/migrate";
-import { findUser } from "../src/db/practice";
+import { findUser, recordSubmission } from "../src/db/practice";
 import { seed } from "../src/db/seed";
-import { getCurrentUser } from "../src/server/practice";
+import { getCurrentUser, getPersonalSubmissions } from "../src/server/practice";
 import { registerAccount } from "../src/server/register-account";
 import { verifyLoginCredentials } from "../src/server/verify-login-credentials";
 
@@ -138,12 +138,16 @@ test("invalid registration inputs and mock mode do not create accounts", async (
   assert.equal(db.prepare("SELECT COUNT(*) AS count FROM users").get()?.count, 1);
 });
 
-test("verifies a registered password and returns only safe fields with the stored role", async (t) => {
+test("verifies credentials with the stored role while personal history stays with the development user", async (t) => {
   const db = accountDatabase(t);
   const result = await registerAccount(registration);
   assert.ok(result.ok);
   const profile = await getCurrentUser();
-  assert.equal(profile?.username, "alex");
+  assert.ok(profile && profile.username === "alex");
+  const answer = { type: "Predict Output", text: "19" } as const;
+  const alexSubmission = recordSubmission(db, profile.id, "CL001", answer);
+  assert.ok(alexSubmission);
+  assert.ok(recordSubmission(db, result.account.id, "CL001", answer));
   const credentials = { username: "  NEW_USER  ", password: registration.password };
   assert.deepEqual(await verifyLoginCredentials(credentials), {
     ok: true, account: { ...result.account, role: "user" },
@@ -154,6 +158,7 @@ test("verifies a registered password and returns only safe fields with the store
     ok: true, account: { ...result.account, role: "admin" },
   });
   assert.deepEqual(await getCurrentUser(), profile);
+  assert.deepEqual((await getPersonalSubmissions()).map(({ id }) => id), [alexSubmission]);
 });
 
 test("returns the same error for an incorrect password, unknown username, and legacy account", async (t) => {

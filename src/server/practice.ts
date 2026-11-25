@@ -2,16 +2,18 @@ import "server-only";
 import { cache } from "react";
 import { databasePath, openDatabase } from "@/db/connection";
 import { devProfile } from "@/db/dev-profile";
-import { findProblem, findPublicUserProfile, findSubmission, findUser, listProblems, readPracticeStats } from "@/db/practice";
+import {
+  findProblem, findPublicUserProfile, findSubmission, findUser, listProblems,
+  listPublicSubmissions, listUserSubmissions, readPracticeStats,
+} from "@/db/practice";
 import type { CurrentUser, PublicUserProfile } from "@/lib/practice";
 import { derivePracticeStats } from "./practice-stats";
+import { mockSubmissionIds, usesLocalDatabase } from "./practice-mode";
 import {
-  getMockPracticeStats, getMockProblem, getMockProblems, getMockSubmission, mockProblemSlugs, mockSubmissionIds,
+  getMockPracticeStats, getMockProblem, getMockProblems, getMockSubmission, getMockSubmissions, mockProblemSlugs,
 } from "./mock-practice";
 
-export function usesLocalDatabase() {
-  return process.env.NODE_ENV === "development" && process.env.CODELINGO_DATA_SOURCE === "sqlite";
-}
+export { usesLocalDatabase };
 
 export function withLocalDatabase<T>(run: (db: ReturnType<typeof openDatabase>) => T) {
   const db = openDatabase(databasePath());
@@ -37,9 +39,7 @@ export const getUserProfile = cache(async (username: string): Promise<PublicUser
   if (usesLocalDatabase()) return withLocalDatabase((db) => findPublicUserProfile(db, username));
   if (username !== devProfile.username) return null;
 
-  const submissions = mockSubmissionIds.map(getMockSubmission)
-    .filter((submission) => submission !== null)
-    .filter((submission) => submission.username === username);
+  const submissions = getMockSubmissions().filter((submission) => submission.username === username);
   const solvedProblems = new Set(
     submissions.filter((submission) => submission.verdict === "AC").map((submission) => submission.problem.slug),
   ).size;
@@ -62,11 +62,21 @@ export const getProblem = cache(async (slug: string) => {
   return withLocalDatabase((db) => findProblem(db, slug, user?.id ?? null));
 });
 
-export const getSubmission = cache(async (id: string) => {
+export async function getPublicSubmissions() {
+  if (!usesLocalDatabase()) return getMockSubmissions();
+  return withLocalDatabase(listPublicSubmissions);
+}
+
+export async function getPersonalSubmissions() {
   const user = await getCurrentUser();
-  if (!user) return null;
+  if (!user) return [];
+  if (!usesLocalDatabase()) return getMockSubmissions().filter((submission) => submission.username === user.username);
+  return withLocalDatabase((db) => listUserSubmissions(db, user.id));
+}
+
+export const getSubmission = cache(async (id: string) => {
   if (!usesLocalDatabase()) return getMockSubmission(id);
-  return withLocalDatabase((db) => findSubmission(db, id, user.id));
+  return withLocalDatabase((db) => findSubmission(db, id));
 });
 
 export async function getPracticeStats() {

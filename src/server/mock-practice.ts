@@ -1,8 +1,9 @@
 import "server-only";
 import { readPublicProblem } from "@/db/content";
 import { devProfile } from "@/db/dev-profile";
-import type { PracticeStats, ProblemDetail, ProblemStatus, ProblemSummary, SubmissionView } from "@/lib/practice";
+import type { PracticeStats, ProblemDetail, ProblemStatus, ProblemSummary, SubmissionSummary, SubmissionView } from "@/lib/practice";
 import { practiceCalendar } from "./practice-stats";
+import { isMockSubmissionId, mockSubmissionIds } from "./practice-mode";
 
 const sampleStatuses = new Map<string, ProblemStatus>([
   ["CL001", "Solved"],
@@ -10,7 +11,6 @@ const sampleStatuses = new Map<string, ProblemStatus>([
   ["CL013", "Not attempted"],
 ]);
 export const mockProblemSlugs = [...sampleStatuses.keys()];
-export const mockSubmissionIds = ["SUB-001", "SUB-002"] as const;
 
 export function getMockProblem(slug: string): ProblemDetail | null {
   const status = sampleStatuses.get(slug);
@@ -109,18 +109,26 @@ export function getMockProblems(): readonly ProblemSummary[] {
 }
 
 export function getMockSubmission(id: string): SubmissionView | null {
-  if (id !== "SUB-001" && id !== "SUB-002") return null;
+  if (!isMockSubmissionId(id)) return null;
   const first = id === "SUB-001";
   const { slug, title, type } = getMockProblem(first ? "CL001" : "CL002")!;
   return {
     id,
     submittedAt: first ? "2026-11-15T09:42:00Z" : "2026-11-15T09:47:00Z",
     username: devProfile.username,
-    timeZone: devProfile.timeZone,
     problem: { slug, title, type },
     submittedAnswer: first ? "19" : "count + 1",
     verdict: first ? "AC" : "WA",
   };
+}
+
+export function getMockSubmissions(): SubmissionSummary[] {
+  return mockSubmissionIds.map(getMockSubmission)
+    .filter((submission) => submission !== null)
+    .map(({ id, submittedAt, username, problem: { slug, title }, verdict }) => ({
+      id, submittedAt, username, problem: { slug, title }, verdict,
+    }))
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt) || b.id.localeCompare(a.id));
 }
 
 export function getMockPracticeStats(now: number, timeZone: string): PracticeStats {

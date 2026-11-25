@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ButtonLink } from "@/components/button-link";
 import { SubmissionResult } from "@/components/submissions/submission-result";
+import { SubmissionTime } from "@/components/submissions/submission-time";
 import { getSampleSubmissionIds, getSampleSubmissions, getSubmission, usesLocalDatabase } from "@/server/practice";
 
 type SubmissionPageProps = PageProps<"/submissions/[submissionId]">;
@@ -43,16 +44,6 @@ async function SubmissionDetail({ params }: Pick<SubmissionPageProps, "params">)
 
   const isMock = !usesLocalDatabase();
   const samples = await getSampleSubmissions();
-  const submittedAt = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: submission.timeZone,
-    timeZoneName: "shortOffset",
-  }).format(new Date(submission.submittedAt));
 
   return (
     <div className="space-y-10">
@@ -61,8 +52,7 @@ async function SubmissionDetail({ params }: Pick<SubmissionPageProps, "params">)
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <li><Link href="/" className="text-link">Home</Link></li>
             <li aria-hidden="true">/</li>
-            {isMock ? <li><Link href="/submissions" className="text-link">Submissions</Link></li>
-              : <li><Link href="/problems" className="text-link">Problems</Link></li>}
+            <li><Link href="/submissions" className="text-link">Submissions</Link></li>
             <li aria-hidden="true">/</li>
             <li aria-current="page" className="break-all font-mono">{submission.id}</li>
           </ol>
@@ -83,13 +73,12 @@ async function SubmissionDetail({ params }: Pick<SubmissionPageProps, "params">)
           </div>
           <div>
             <dt className="text-sm font-medium">Submitted at</dt>
-            <dd className="mt-1"><time dateTime={submission.submittedAt}>{submittedAt}</time></dd>
+            <dd className="mt-1"><SubmissionTime submittedAt={submission.submittedAt} /></dd>
           </div>
           <div>
             <dt className="text-sm font-medium">Submitted by</dt>
             <dd className="mt-1 break-words">
-              {isMock ? <Link href={`/users/${submission.username}`} className="text-link">{submission.username}</Link>
-                : submission.username}
+              <Link href={`/users/${encodeURIComponent(submission.username)}`} className="text-link">{submission.username}</Link>
             </dd>
           </div>
           <div className="min-w-0 sm:col-span-2">
@@ -124,7 +113,7 @@ async function SubmissionDetail({ params }: Pick<SubmissionPageProps, "params">)
 
       <div className="flex flex-wrap gap-3">
         <ButtonLink href={`/problems/${submission.problem.slug}`}>View problem</ButtonLink>
-        {isMock && <ButtonLink href="/submissions" variant="secondary">Back to submissions</ButtonLink>}
+        <ButtonLink href="/submissions" variant="secondary">Back to submissions</ButtonLink>
       </div>
 
       {samples.length > 0 && (
