@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test, type TestContext } from "node:test";
+import matter from "gray-matter";
 import { openDatabase } from "../src/db/connection";
 import { readPublicProblem } from "../src/db/content";
 import { devProfile } from "../src/db/dev-profile";
@@ -21,6 +22,14 @@ function practiceDatabase(t: TestContext) {
   assert.ok(alex);
   return { db, alex };
 }
+
+test("problem details preserve the Markdown body verbatim before and after seeding", (t) => {
+  const { db } = practiceDatabase(t);
+  const { content } = matter(readFileSync("content/problems/CL001/problem.md", "utf8"));
+
+  assert.equal(readPublicProblem("CL001").statementMarkdown, content);
+  assert.equal(findProblem(db, "CL001", null)?.statementMarkdown, content);
+});
 
 test("the role migration upgrades an existing user without changing their submissions", (t) => {
   const db = openDatabase(":memory:");

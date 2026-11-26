@@ -37,7 +37,7 @@ export function readPublicProblem(slug: string): ProblemDetail {
     difficulty,
     tags: tags.map((tag) => tag.trim()),
     status: null,
-    statementMarkdown: content.trim(),
+    statementMarkdown: content,
     exampleCode,
     codeLanguage: "c",
   };
