@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import { AnswerForm } from "@/components/problems/answer-form";
+import { CopyMarkdownButton } from "@/components/problems/copy-markdown-button";
 import { ProblemExample, ProblemMarkdown } from "@/components/problems/problem-markdown";
 import { getCurrentUser, getProblem, getSampleProblemSlugs, usesLocalDatabase } from "@/server/practice";
 import { submitAnswer } from "@/server/submit-answer";
@@ -59,7 +60,10 @@ export default async function ProblemPage({ params }: ProblemPageProps) {
 
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-labelledby="statement-heading" className="min-w-0 space-y-4">
-          <h2 id="statement-heading" className="section-heading">Problem statement</h2>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3">
+            <h2 id="statement-heading" className="section-heading">Problem statement</h2>
+            <CopyMarkdownButton markdown={problem.statementMarkdown} />
+          </div>
           <ProblemMarkdown markdown={problem.statementMarkdown} />
           <figure className="rounded-md border border-border bg-background">
             <figcaption
